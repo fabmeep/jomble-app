@@ -8,8 +8,6 @@ import { comparePassword } from "@/lib/password"
 
 export const { handlers, signIn, signOut, auth } = NextAuth({
   adapter: PrismaAdapter(prisma),
-  // Force clean rebuild to pick up new Vercel env variables
-  debug: true,
   session: {
     strategy: "jwt"
   },
