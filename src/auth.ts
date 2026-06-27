@@ -8,6 +8,7 @@ import { comparePassword } from "@/lib/password"
 
 export const { handlers, signIn, signOut, auth } = NextAuth({
   adapter: PrismaAdapter(prisma),
+  debug: true,
   session: {
     strategy: "jwt"
   },
