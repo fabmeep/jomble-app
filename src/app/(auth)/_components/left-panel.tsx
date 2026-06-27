@@ -54,9 +54,9 @@ export default function LeftPanel() {
       </div>
 
       {/* Stat cards */}
-      <div className="relative z-10 flex flex-col gap-2.5 mb-8">
-        {/* Card 1 */}
-        <div
+      {/* <div className="relative z-10 flex flex-col gap-2.5 mb-8"> */}
+      {/* Card 1 */}
+      {/* <div
           className="bg-white/6 border border-white/10 rounded-xl p-3.5 px-4.5 flex items-center gap-3.5 backdrop-blur-[4px] animate-fade-up"
           style={{ animationDelay: "0.1s" }}
         >
@@ -91,10 +91,10 @@ export default function LeftPanel() {
               Applications tracked
             </div>
           </div>
-        </div>
+        </div> */}
 
-        {/* Card 2 */}
-        <div
+      {/* Card 2 */}
+      {/* <div
           className="bg-white/6 border border-white/10 rounded-xl p-3.5 px-4.5 flex items-center gap-3.5 backdrop-blur-[4px] animate-fade-up"
           style={{ animationDelay: "0.2s" }}
         >
@@ -120,10 +120,10 @@ export default function LeftPanel() {
               Response rate
             </div>
           </div>
-        </div>
+        </div> */}
 
-        {/* Card 3 */}
-        <div
+      {/* Card 3 */}
+      {/* <div
           className="bg-white/6 border border-white/10 rounded-xl p-3.5 px-4.5 flex items-center gap-3.5 backdrop-blur-[4px] animate-fade-up"
           style={{ animationDelay: "0.3s" }}
         >
@@ -149,16 +149,16 @@ export default function LeftPanel() {
               Avg. days to reply
             </div>
           </div>
-        </div>
-      </div>
+        </div> */}
+      {/* </div> */}
 
       {/* Bottom quote */}
       <div className="relative z-10 border-t border-white/10 pt-5">
         <p className="text-[13px] text-white/35 italic leading-relaxed">
-          &quot;I landed 3 interviews in 2 weeks just by staying on top of follow-ups.&quot;
+          &quot;By far the best job application tracker I've ever used&quot;
         </p>
         <span className="block text-[12px] text-white/25 mt-1.5 not-italic">
-          — Adit R., Software Engineer
+          — Probably some User in the near future
         </span>
       </div>
     </div>
