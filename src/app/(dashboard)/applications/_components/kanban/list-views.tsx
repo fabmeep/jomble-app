@@ -16,7 +16,7 @@ interface ListViewProps {
     filterMode: string;
     deletingId: string | null;
     router: any;
-    handleSort: (field: "company" | "appliedAt" | "excitement" | "status") => void;
+    handleSort: (field: "company" | "appliedAt" | "lastActivity" | "excitement" | "status") => void;
     handleDelete: (id: string, e: React.MouseEvent) => void;
     handlePageChange: (page: number) => void;
     formatDateShort: (date: Date | string) => string;

@@ -14,6 +14,7 @@ export interface Application {
     jobUrl: string | null;
     status: string;
     appliedAt: Date;
+    lastActivityAt: Date;
     excitementScore: number | null;
 }
 
@@ -21,7 +22,7 @@ export interface ColumnOptions {
     sortBy: string | null;
     sortOrder: "asc" | "desc" | null;
     deletingId: string | null;
-    handleSort: (field: "company" | "appliedAt" | "excitement" | "status") => void;
+    handleSort: (field: "company" | "appliedAt" | "lastActivity" | "excitement" | "status") => void;
     handleDelete: (id: string, e: React.MouseEvent) => void;
     formatDateShort: (date: Date | string) => string;
 }
@@ -94,6 +95,30 @@ export const getColumns = (opts: ColumnOptions): ColumnDef<Application>[] => [
             >
                 Applied
                 {opts.sortBy === "appliedAt" ? (
+                    <span className="font-sans text-[10px] ml-1">{opts.sortOrder === "asc" ? "▲" : "▼"}</span>
+                ) : (
+                    <span className="opacity-30 ml-1">↕</span>
+                )}
+            </div>
+        ),
+        cell: ({ getValue }) => (
+            <span className="text-xs font-mono text-[#6B6863]">
+                {opts.formatDateShort(getValue<Date | string>())}
+            </span>
+        )
+    },
+    {
+        accessorKey: "lastActivityAt",
+        meta: {
+            className: "w-[110px]"
+        },
+        header: () => (
+            <div
+                onClick={() => opts.handleSort("lastActivity")}
+                className="cursor-pointer hover:text-[#2D2D2D] select-none flex items-center gap-1"
+            >
+                Last Activity
+                {opts.sortBy === "lastActivity" ? (
                     <span className="font-sans text-[10px] ml-1">{opts.sortOrder === "asc" ? "▲" : "▼"}</span>
                 ) : (
                     <span className="opacity-30 ml-1">↕</span>

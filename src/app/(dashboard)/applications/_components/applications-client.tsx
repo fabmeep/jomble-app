@@ -38,7 +38,7 @@ export default function ApplicationsClient({ initialApplications }: Applications
   const [localApps, setLocalApps] = useState<Application[]>(initialApplications)
   const search = searchParams.get("search") || ""
   const [filterMode, setFilterMode] = useState<string>("ALL") // ALL, ACTIVE, ARCHIVED, or specific status
-  const [sortBy, setSortBy] = useState<"company" | "appliedAt" | "excitement" | "status" | null>("appliedAt")
+  const [sortBy, setSortBy] = useState<"company" | "appliedAt" | "lastActivity" | "excitement" | "status" | null>("appliedAt")
   const [sortOrder, setSortOrder] = useState<"asc" | "desc" | null>("desc")
   const [viewMode, setViewMode] = useState<"list" | "board">("list")
   const [currentPage, setCurrentPage] = useState(1)
@@ -96,6 +96,8 @@ export default function ApplicationsClient({ initialApplications }: Applications
         comparison = a.companyName.localeCompare(b.companyName)
       } else if (sortBy === "appliedAt") {
         comparison = new Date(a.appliedAt).getTime() - new Date(b.appliedAt).getTime()
+      } else if (sortBy === "lastActivity") {
+        comparison = new Date(a.lastActivityAt).getTime() - new Date(b.lastActivityAt).getTime()
       } else if (sortBy === "excitement") {
         comparison = (a.excitementScore || 0) - (b.excitementScore || 0)
       } else if (sortBy === "status") {
@@ -117,7 +119,7 @@ export default function ApplicationsClient({ initialApplications }: Applications
   const totalPages = Math.max(1, Math.ceil(sortedApps.length / itemsPerPage))
 
   // Sort toggle handler
-  const handleSort = (field: "company" | "appliedAt" | "excitement" | "status") => {
+  const handleSort = (field: "company" | "appliedAt" | "lastActivity" | "excitement" | "status") => {
     if (sortBy === field) {
       if (sortOrder === "asc") {
         setSortOrder("desc")
