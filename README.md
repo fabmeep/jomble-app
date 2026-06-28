@@ -16,6 +16,15 @@ Jomble is a sleek, modern, and production-ready job application tracker built wi
 *   **🕒 Chronological Activity Timeline**: Generates a timeline event for every status update (`STATUS_CHANGE`), new note (`NOTE_ADDED`), or recruiter context added (`CONTACT_ADDED`), giving you a detailed auditing trail of each job application's progress.
 *   **🗂️ Unified Entity Management**: Associate key recruiter contacts (name, email, role, LinkedIn link, custom notes) and multiple markdown-capable notes with any job application.
 *   **🔒 Auth.js (NextAuth v5)**: Out-of-the-box Credentials (password hashing with bcryptjs) and Google OAuth login integration using relational PostgreSQL tables, protected routes, and session persistence.
+*   **🚩 Concerns & Red Flags System**: Define custom red flags globally in user settings (e.g. `💸` "Low Salary", `🏢` "Micro-management", `🚗` "Long Commute"). Toggle concerns during application creation or modification to display warning badges on Kanban cards, list view rows, and application detail summaries.
+
+---
+
+## 🚀 Demo Account
+
+You can log in and test the application using the pre-seeded demo account credentials:
+*   **Email**: `demo@jomble.com`
+*   **Password**: `password123`
 
 ---
 
