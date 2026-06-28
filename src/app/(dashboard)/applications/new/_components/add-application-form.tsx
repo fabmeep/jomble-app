@@ -1,6 +1,6 @@
 "use client"
 
-import { useState } from "react"
+import { useState, useEffect } from "react"
 import { useRouter } from "next/navigation"
 import Link from "next/link"
 import { useForm, useFieldArray } from "react-hook-form"
@@ -26,6 +26,7 @@ import {
   ArrowLeft,
 } from "lucide-react"
 import { cn } from "@/lib/utils"
+import { toast } from "sonner"
 import FormCard from "./form/form-cards"
 import FormInputField from "./form/form-input-field"
 import { AutoFillCard } from "./autofill/autofill-card"
@@ -90,6 +91,7 @@ export default function AddApplicationForm() {
       excitementScore: 3,
       contacts: [{ name: "", role: "", email: "", linkedinUrl: "", notes: "" }],
       notes: "",
+      redFlags: [],
     },
   })
 
@@ -97,6 +99,23 @@ export default function AddApplicationForm() {
     control,
     name: "contacts",
   })
+
+  const [availableFlags, setAvailableFlags] = useState<{ id: string; label: string; emoji: string }[]>([])
+  
+  useEffect(() => {
+    async function fetchFlags() {
+      try {
+        const res = await fetch("/api/red-flags")
+        if (res.ok) {
+          const data = await res.json()
+          setAvailableFlags(data)
+        }
+      } catch (err) {
+        console.error("Error loading red flags for form selector:", err)
+      }
+    }
+    fetchFlags()
+  }, [])
 
   const excitementScore = watch("excitementScore")
 
@@ -150,11 +169,14 @@ export default function AddApplicationForm() {
         throw new Error(errorData.error || "Failed to create job application")
       }
 
+      toast.success("Job application created successfully!")
       router.push("/dashboard")
       router.refresh()
     } catch (err) {
       console.error(err)
-      setSubmitError((err as Error).message || "An unexpected error occurred.")
+      const errorMsg = (err as Error).message || "An unexpected error occurred."
+      setSubmitError(errorMsg)
+      toast.error(errorMsg)
     }
   }
 
@@ -474,6 +496,52 @@ export default function AddApplicationForm() {
               Add another contact
             </button>
           </FormCard>
+
+          {/* ── SECTION: Concerns & Red Flags ── */}
+          {availableFlags.length > 0 && (
+            <FormCard
+              title="Concerns & Red Flags"
+              icon={AlertCircle}
+              iconBgClass="bg-[#FFF0F0]"
+              iconColorClass="text-[#FF6B6B]"
+            >
+              <p className="text-xs text-[#6B6863] leading-normal mb-2.5">
+                Select any red flags that apply to this role.
+              </p>
+              <div className="flex flex-wrap gap-2">
+                {availableFlags.map((flag) => {
+                  const selectedFlags = watch("redFlags") || []
+                  const isSelected = selectedFlags.includes(flag.id)
+                  return (
+                    <button
+                      type="button"
+                      key={flag.id}
+                      onClick={() => {
+                        if (isSelected) {
+                          setValue(
+                            "redFlags",
+                            selectedFlags.filter((id) => id !== flag.id),
+                            { shouldDirty: true }
+                          )
+                        } else {
+                          setValue("redFlags", [...selectedFlags, flag.id], { shouldDirty: true })
+                        }
+                      }}
+                      className={cn(
+                        "inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-semibold border transition-all duration-150 cursor-pointer select-none",
+                        isSelected
+                          ? "bg-[#FFF0F0] text-[#FF6B6B] border-[#FF6B6B]/25"
+                          : "bg-white border-[#E8E6E0] text-[#6B6863] hover:bg-[#F8F7F5]"
+                      )}
+                    >
+                      <span>{flag.emoji}</span>
+                      <span>{flag.label}</span>
+                    </button>
+                  )
+                })}
+              </div>
+            </FormCard>
+          )}
 
           {/* ── SECTION: Notes ── */}
           <FormCard

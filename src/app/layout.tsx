@@ -1,6 +1,7 @@
 import type { Metadata } from "next";
 import { Plus_Jakarta_Sans, Geist_Mono } from "next/font/google";
 import { SessionProvider } from "next-auth/react";
+import { Toaster } from "sonner";
 import "./globals.css";
 
 const plusJakartaSans = Plus_Jakarta_Sans({
@@ -31,6 +32,7 @@ export default function RootLayout({
       <body className="min-h-full">
         <SessionProvider>
           {children}
+          <Toaster position="top-right" richColors />
         </SessionProvider>
       </body>
     </html>

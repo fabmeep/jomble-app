@@ -6,9 +6,17 @@ export default async function ApplicationsPage() {
   const userId = await getUserId();
 
   // Fetch job applications belonging to the logged in user
+  // Fetch job applications belonging to the logged in user with their red flags
   const applications = await prisma.jobApplication.findMany({
     where: {
       userId: userId,
+    },
+    include: {
+      redFlags: {
+        include: {
+          redFlag: true,
+        },
+      },
     },
     orderBy: {
       appliedAt: "desc",
@@ -22,6 +30,11 @@ export default async function ApplicationsPage() {
     lastActivityAt: new Date(app.lastActivityAt),
     createdAt: new Date(app.createdAt),
     updatedAt: new Date(app.updatedAt),
+    redFlags: app.redFlags.map(rf => ({
+      id: rf.redFlag.id,
+      label: rf.redFlag.label,
+      emoji: rf.redFlag.emoji,
+    })),
   }))
 
   return <ApplicationsClient initialApplications={formattedApplications} />

@@ -12,6 +12,7 @@ import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import * as z from "zod";
 import { useRouter } from "next/navigation";
+import { toast } from "sonner"
 import AuthDivider from "../_components/auth-dividers";
 
 const loginSchema = z.object({
@@ -50,12 +51,15 @@ export default function LoginPage() {
 
       if (res?.error) {
         setError("Invalid email or password");
+        toast.error("Invalid email or password");
       } else {
+        toast.success("Welcome back! Signing you in...");
         router.push("/dashboard");
         router.refresh();
       }
     } catch (err) {
       setError("An unexpected error occurred. Please try again.");
+      toast.error("An unexpected error occurred. Please try again.");
     } finally {
       setLoading(false);
     }

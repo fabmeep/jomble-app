@@ -1,6 +1,6 @@
 "use client"
 
-import { useState } from "react"
+import { useState, useEffect } from "react"
 import { useRouter } from "next/navigation"
 import Link from "next/link"
 import { useForm, useFieldArray } from "react-hook-form"
@@ -23,8 +23,10 @@ import {
   Check,
   FileText,
   AlertTriangle,
+  AlertCircle,
 } from "lucide-react"
 import { cn } from "@/lib/utils"
+import { toast } from "sonner"
 import { jobApplicationSchema } from "@/shared/schemas/jobApplication"
 import { z } from "zod"
 
@@ -64,6 +66,7 @@ interface Application {
   updatedAt: string
   notes: Note[]
   contacts: Contact[]
+  redFlags?: string[]
 }
 
 interface EditApplicationClientProps {
@@ -138,6 +141,7 @@ export default function EditApplicationClient({ initialApplication }: EditApplic
         notes: "",
       })),
       notes: initialApplication.notes[0]?.content || "",
+      redFlags: initialApplication.redFlags || [],
     },
   })
 
@@ -148,6 +152,23 @@ export default function EditApplicationClient({ initialApplication }: EditApplic
 
   const excitementScore = watch("excitementScore")
   const selectedStatus = watch("status")
+
+  const [availableFlags, setAvailableFlags] = useState<{ id: string; label: string; emoji: string }[]>([])
+
+  useEffect(() => {
+    async function fetchFlags() {
+      try {
+        const res = await fetch("/api/red-flags")
+        if (res.ok) {
+          const data = await res.json()
+          setAvailableFlags(data)
+        }
+      } catch (err) {
+        console.error("Error loading red flags for edit selector:", err)
+      }
+    }
+    fetchFlags()
+  }, [])
 
   const onSubmit = async (data: JobApplicationFormInput) => {
     setSubmitError(null)
@@ -187,11 +208,14 @@ export default function EditApplicationClient({ initialApplication }: EditApplic
         throw new Error(errorData.error || "Failed to update job application")
       }
 
+      toast.success("Job application updated successfully!")
       router.push(`/applications/${initialApplication.id}`)
       router.refresh()
     } catch (err) {
       console.error(err)
-      setSubmitError((err as Error).message || "An unexpected error occurred.")
+      const errorMsg = (err as Error).message || "An unexpected error occurred."
+      setSubmitError(errorMsg)
+      toast.error(errorMsg)
     }
   }
 
@@ -207,11 +231,12 @@ export default function EditApplicationClient({ initialApplication }: EditApplic
         throw new Error(errorData.error || "Failed to delete application")
       }
 
-      router.push("/dashboard")
+      toast.success("Job application deleted successfully!")
+      router.push("/applications")
       router.refresh()
     } catch (err) {
       console.error(err)
-      alert("Error deleting application: " + (err as Error).message)
+      toast.error("Error deleting application: " + (err as Error).message)
       setIsDeleting(false)
       setShowDeleteModal(false)
     }
@@ -674,6 +699,55 @@ export default function EditApplicationClient({ initialApplication }: EditApplic
                 </button>
               </div>
             </div>
+
+            {/* ── SECTION: Concerns & Red Flags ── */}
+            {availableFlags.length > 0 && (
+              <div className="bg-white border border-[#E8E6E0] rounded-xl overflow-hidden shadow-2xs">
+                <div className="px-4.5 py-3.5 border-b border-[#E8E6E0] bg-[#FAF9F7]/50 flex items-center gap-2.5 select-none">
+                  <div className="w-7 h-7 rounded-lg bg-[#FFF0F0] flex items-center justify-center shrink-0">
+                    <AlertCircle className="w-3.5 h-3.5 text-[#FF6B6B]" />
+                  </div>
+                  <span className="font-bold text-[#2D2D2D] text-[13px]">Concerns & Red Flags</span>
+                </div>
+                <div className="p-5 px-5.5 flex flex-col gap-2.5">
+                  <p className="text-xs text-[#6B6863] leading-normal mb-1">
+                    Select any red flags that apply to this role.
+                  </p>
+                  <div className="flex flex-wrap gap-2">
+                    {availableFlags.map((flag) => {
+                      const selectedFlags = watch("redFlags") || []
+                      const isSelected = selectedFlags.includes(flag.id)
+                      return (
+                        <button
+                          type="button"
+                          key={flag.id}
+                          onClick={() => {
+                            if (isSelected) {
+                              setValue(
+                                "redFlags",
+                                selectedFlags.filter((id) => id !== flag.id),
+                                { shouldDirty: true }
+                              )
+                            } else {
+                              setValue("redFlags", [...selectedFlags, flag.id], { shouldDirty: true })
+                            }
+                          }}
+                          className={cn(
+                            "inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-semibold border transition-all duration-150 cursor-pointer select-none",
+                            isSelected
+                              ? "bg-[#FFF0F0] text-[#FF6B6B] border-[#FF6B6B]/25"
+                              : "bg-white border-[#E8E6E0] text-[#6B6863] hover:bg-[#F8F7F5]"
+                          )}
+                        >
+                          <span>{flag.emoji}</span>
+                          <span>{flag.label}</span>
+                        </button>
+                      )
+                    })}
+                  </div>
+                </div>
+              </div>
+            )}
 
             {/* ── SECTION: Notes ── */}
             <div className="bg-white border border-[#E8E6E0] rounded-xl overflow-hidden shadow-2xs">

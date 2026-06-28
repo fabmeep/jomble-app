@@ -11,7 +11,7 @@ export default async function EditApplicationPage({ params }: PageProps) {
   const { id } = await params
   const userId = await getUserId()
 
-  // Fetch job application with contacts and notes
+  // Fetch job application with contacts, notes, and red flags
   const application = await prisma.jobApplication.findUnique({
     where: { id },
     include: {
@@ -19,6 +19,7 @@ export default async function EditApplicationPage({ params }: PageProps) {
       notes: {
         orderBy: { createdAt: "asc" },
       },
+      redFlags: true,
     },
   })
 
@@ -43,6 +44,7 @@ export default async function EditApplicationPage({ params }: PageProps) {
       ...contact,
       createdAt: contact.createdAt.toISOString(),
     })),
+    redFlags: application.redFlags.map(rf => rf.flagId),
   }
 
   return <EditApplicationClient initialApplication={formattedApplication as any} />

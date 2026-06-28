@@ -28,6 +28,7 @@ import {
 } from "lucide-react"
 import { cn, getInitials } from "@/lib/utils"
 import { statusMap } from "@/lib/status"
+import { toast } from "sonner"
 import StatusBadge from "@/components/ui/status-badge"
 import CompanyLogo from "@/components/ui/company-logo"
 
@@ -80,6 +81,7 @@ interface Application {
   notes: Note[]
   contacts: Contact[]
   timelineEvents: TimelineEvent[]
+  redFlags?: { id: string; label: string; emoji: string }[]
 }
 
 interface ApplicationDetailClientProps {
@@ -188,8 +190,9 @@ export default function ApplicationDetailClient({ initialApplication }: Applicat
       if (!res.ok) throw new Error("Failed to update excitement score")
 
       setLocalApp(prev => ({ ...prev, excitementScore: score }))
+      toast.success("Rating updated!")
     } catch (err) {
-      alert("Error updating rating: " + (err as Error).message)
+      toast.error("Error updating rating: " + (err as Error).message)
     }
   }
 
@@ -226,9 +229,10 @@ export default function ApplicationDetailClient({ initialApplication }: Applicat
         },
         ...prev
       ])
+      toast.success(`Status updated to "${statusMap[newStatus]?.label || newStatus}"`)
       router.refresh()
     } catch (err) {
-      alert("Error updating status: " + (err as Error).message)
+      toast.error("Error updating status: " + (err as Error).message)
     }
   }
 
@@ -241,10 +245,11 @@ export default function ApplicationDetailClient({ initialApplication }: Applicat
       })
       if (!res.ok) throw new Error("Failed to delete application")
 
+      toast.success("Job application deleted successfully!")
       router.push("/applications")
       router.refresh()
     } catch (err) {
-      alert("Error deleting application: " + (err as Error).message)
+      toast.error("Error deleting application: " + (err as Error).message)
       setIsDeleting(false)
     }
   }
@@ -280,9 +285,10 @@ export default function ApplicationDetailClient({ initialApplication }: Applicat
       ])
 
       setNewNoteText("")
+      toast.success("Note added successfully")
       router.refresh()
     } catch (err) {
-      alert("Error saving note: " + (err as Error).message)
+      toast.error("Error saving note: " + (err as Error).message)
     } finally {
       setIsAddingNote(false)
     }
@@ -299,8 +305,9 @@ export default function ApplicationDetailClient({ initialApplication }: Applicat
       if (!res.ok) throw new Error("Failed to delete note")
 
       setNotes(prev => prev.filter(n => n.id !== noteId))
+      toast.success("Note deleted successfully")
     } catch (err) {
-      alert("Error deleting note: " + (err as Error).message)
+      toast.error("Error deleting note: " + (err as Error).message)
     } finally {
       setDeletingNoteId(null)
     }
@@ -350,9 +357,10 @@ export default function ApplicationDetailClient({ initialApplication }: Applicat
       setContactEmail("")
       setContactLinkedin("")
       setIsAddingContact(false)
+      toast.success("Contact added successfully")
       router.refresh()
     } catch (err) {
-      alert("Error saving contact: " + (err as Error).message)
+      toast.error("Error saving contact: " + (err as Error).message)
     } finally {
       setIsSavingContact(false)
     }
@@ -370,8 +378,9 @@ export default function ApplicationDetailClient({ initialApplication }: Applicat
       if (!res.ok) throw new Error("Failed to delete contact")
 
       setContacts(prev => prev.filter(c => c.id !== contactId))
+      toast.success("Contact removed successfully")
     } catch (err) {
-      alert("Error removing contact: " + (err as Error).message)
+      toast.error("Error removing contact: " + (err as Error).message)
     } finally {
       setDeletingContactId(null)
     }
@@ -463,6 +472,25 @@ export default function ApplicationDetailClient({ initialApplication }: Applicat
                     Applied {formatDateLong(localApp.appliedAt)}
                   </span>
                 </div>
+
+                {/* Red Flags Display */}
+                {localApp.redFlags && localApp.redFlags.length > 0 && (
+                  <div className="flex flex-wrap items-center gap-1.5 mt-2.5">
+                    <span className="text-[10px] font-bold text-[#FF6B6B] uppercase tracking-wider select-none bg-[#FFF0F0] border border-[#FF6B6B]/15 px-1.5 py-0.5 rounded-md flex items-center gap-1">
+                      ⚠️ Concerns
+                    </span>
+                    {localApp.redFlags.map((flag) => (
+                      <span
+                        key={flag.id}
+                        className="bg-[#FFF0F0] text-[#FF6B6B] border border-[#FF6B6B]/15 px-2.5 py-0.5 rounded-full text-xs font-semibold select-none flex items-center gap-1 hover:bg-[#FFE5E5] transition-colors animate-in fade-in duration-150"
+                        title={flag.label}
+                      >
+                        <span>{flag.emoji}</span>
+                        <span>{flag.label}</span>
+                      </span>
+                    ))}
+                  </div>
+                )}
 
                 {/* Status and Excitement select bar */}
                 <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4 mt-3 border-t border-[#E8E6E0] pt-4 select-none">

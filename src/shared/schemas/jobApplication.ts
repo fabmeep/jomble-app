@@ -98,6 +98,7 @@ export const jobApplicationSchema = z
         notes: z.string().nullable().optional(),
       })
     ).optional(),
+    redFlags: z.array(z.string()).optional(),
   })
   .refine(
     (data) => {

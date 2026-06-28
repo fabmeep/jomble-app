@@ -48,7 +48,7 @@ export async function PUT(req: NextRequest, { params }: { params: Promise<{ id: 
         }
 
         // 2. Extract relation fields
-        const { notes, contacts, ...applicationData } = body;
+        const { notes, contacts, redFlags, ...applicationData } = body;
 
         // 3. Cast numeric fields properly
         if (applicationData.salaryMin !== undefined) {
@@ -143,6 +143,21 @@ export async function PUT(req: NextRequest, { params }: { params: Promise<{ id: 
                         email: c.email?.trim() || null,
                         linkedinUrl: c.linkedinUrl?.trim() || null,
                         notes: c.notes?.trim() || null
+                    }))
+                });
+            }
+        }
+
+        // 9. Sync red flags
+        if (redFlags !== undefined) {
+            await prisma.jobApplicationRedFlag.deleteMany({
+                where: { jobAppId: id }
+            });
+            if (redFlags.length > 0) {
+                await prisma.jobApplicationRedFlag.createMany({
+                    data: redFlags.map((flagId: string) => ({
+                        jobAppId: id,
+                        flagId
                     }))
                 });
             }

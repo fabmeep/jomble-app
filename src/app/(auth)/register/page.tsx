@@ -13,6 +13,7 @@ import * as z from "zod";
 import { signIn } from "next-auth/react";
 import { useRouter } from "next/navigation";
 import FormHeader from "../_components/form-headers";
+import { toast } from "sonner";
 
 const registerFormSchema = z.object({
   firstName: z.string().min(1, "First name is required"),
@@ -113,10 +114,14 @@ export default function RegisterPage() {
       const responseData = await response.json();
 
       if (!response.ok) {
-        setError(responseData.message || "Registration failed. Please try again.");
+        const errorMsg = responseData.message || "Registration failed. Please try again."
+        setError(errorMsg);
+        toast.error(errorMsg);
         setLoading(false);
         return;
       }
+
+      toast.success("Account created successfully!");
 
       // Auto sign-in on success
       const res = await signIn("credentials", {
@@ -127,13 +132,17 @@ export default function RegisterPage() {
 
       if (res?.error) {
         setError("Account created, but automatic sign-in failed. Please sign in manually.");
+        toast.warning("Auto sign-in failed. Please sign in manually.");
         setLoading(false);
       } else {
+        toast.success("Redirecting to dashboard...");
         router.push("/dashboard");
         router.refresh();
       }
     } catch (err) {
-      setError("An unexpected error occurred. Please try again.");
+      const errorMsg = "An unexpected error occurred. Please try again."
+      setError(errorMsg);
+      toast.error(errorMsg);
       setLoading(false);
     }
   };

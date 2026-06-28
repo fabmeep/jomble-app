@@ -6,7 +6,7 @@ export default async function ApplicationDetailPage({ params }: { params: Promis
   const { id } = await params
   const userId = await getUserId()
 
-  // Fetch application with all data including timeline events
+  // Fetch application with all data including timeline events and red flags
   const application = await prisma.jobApplication.findUnique({
     where: { id },
     include: {
@@ -16,6 +16,11 @@ export default async function ApplicationDetailPage({ params }: { params: Promis
       },
       timelineEvents: {
         orderBy: { occurredAt: "desc" },
+      },
+      redFlags: {
+        include: {
+          redFlag: true,
+        },
       },
     },
   })
@@ -46,6 +51,11 @@ export default async function ApplicationDetailPage({ params }: { params: Promis
     timelineEvents: application.timelineEvents.map(event => ({
       ...event,
       occurredAt: new Date(event.occurredAt),
+    })),
+    redFlags: application.redFlags.map(rf => ({
+      id: rf.redFlag.id,
+      label: rf.redFlag.label,
+      emoji: rf.redFlag.emoji,
     })),
   }
 

@@ -36,7 +36,7 @@ export async function POST(req: NextRequest) {
                 headers: { 'Content-Type': 'application/json' }
             });
         }
-        const { notes, contacts, ...applicationData } = validation.data;
+        const { notes, contacts, redFlags, ...applicationData } = validation.data;
 
         // Create job application
         const application = await prisma.jobApplication.create({
@@ -44,6 +44,14 @@ export async function POST(req: NextRequest) {
                 userId,
                 ...applicationData,
                 ...(notes ? { notes: { create: { content: notes, }, }, } : {}),
+                ...(redFlags && redFlags.length > 0
+                    ? {
+                        redFlags: {
+                            create: redFlags.map((flagId: string) => ({
+                                flagId
+                            }))
+                        }
+                    } : {}),
                 ...(contacts && contacts.length > 0
                     ? {
                         contacts: {

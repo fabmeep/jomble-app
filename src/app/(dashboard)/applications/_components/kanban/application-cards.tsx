@@ -13,6 +13,7 @@ interface Application {
     excitementScore?: number;
     appliedAt: string;
     jobUrl?: string;
+    redFlags?: { id: string; label: string; emoji: string }[];
 }
 
 interface ApplicationCardProps {
@@ -56,6 +57,13 @@ export function ApplicationCard({ app, onNavigate, onDelete, deletingId, formatD
                             )}
                         />
                     ))}
+                    {app.redFlags && app.redFlags.length > 0 && (
+                        <div className="flex gap-0.5 items-center ml-2 border-l border-border/70 pl-2 select-none" title={app.redFlags.map(rf => rf.label).join(", ")}>
+                            {app.redFlags.map((flag) => (
+                                <span key={flag.id} className="text-xs leading-none">{flag.emoji}</span>
+                            ))}
+                        </div>
+                    )}
                 </div>
                 <span className="text-[10px] font-mono text-muted-foreground">
                     {formatDateShort(app.appliedAt)}

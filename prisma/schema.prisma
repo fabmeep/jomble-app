@@ -22,6 +22,7 @@ model User {
   updatedAt       DateTime         @updatedAt
   accounts        Account[]
   sessions        Session[]
+  redFlags        RedFlag[]
   jobApplications JobApplication[]
 
   @@map("users")
@@ -91,6 +92,8 @@ model JobApplication {
   user            User              @relation(fields: [userId], references: [id], onDelete: Cascade)
   notes           Note[]
   timelineEvents  TimelineEvent[]
+  redFlags JobApplicationRedFlag[]
+
 
   @@index([userId])
   @@index([userId, status])
@@ -145,6 +148,37 @@ model Contact {
   @@map("contacts")
   @@schema("public")
 }
+
+model RedFlag {
+  id          String   @id @default(cuid())
+  userId      String
+  label       String
+  emoji       String   @default("🚩")
+  createdAt   DateTime @default(now())
+
+  // Relationships
+  user         User                    @relation(fields: [userId], references: [id], onDelete: Cascade)
+  applications JobApplicationRedFlag[]
+
+  @@unique([userId, label])
+  @@index([userId])
+  @@map("red_flags")
+  @@schema("public")
+}
+
+model JobApplicationRedFlag {
+  jobAppId  String
+  flagId    String
+
+  // Relationships
+  jobApplication JobApplication @relation(fields: [jobAppId], references: [id], onDelete: Cascade)
+  redFlag        RedFlag        @relation(fields: [flagId],   references: [id], onDelete: Cascade)
+
+  @@id([jobAppId, flagId])
+  @@map("job_application_red_flags")
+  @@schema("public")
+}
+
 
 model PrefillToken {
   id        String   @id @default(cuid())

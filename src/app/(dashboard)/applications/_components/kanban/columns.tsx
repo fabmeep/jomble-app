@@ -16,6 +16,7 @@ export interface Application {
     appliedAt: Date;
     lastActivityAt: Date;
     excitementScore: number | null;
+    redFlags?: { id: string; label: string; emoji: string }[];
 }
 
 export interface ColumnOptions {
@@ -55,8 +56,17 @@ export const getColumns = (opts: ColumnOptions): ColumnDef<Application>[] => [
                         <div className="font-semibold text-[13px] text-[#2D2D2D] truncate" title={app.companyName}>
                             {app.companyName}
                         </div>
-                        <div className="text-[11.5px] text-[#6B6863] truncate" title={app.jobTitle}>
-                            {app.jobTitle}
+                        <div className="flex items-center gap-1.5 min-w-0">
+                            <span className="text-[11.5px] text-[#6B6863] truncate" title={app.jobTitle}>
+                                {app.jobTitle}
+                            </span>
+                            {app.redFlags && app.redFlags.length > 0 && (
+                                <div className="flex items-center gap-0.5 flex-shrink-0 select-none" title={app.redFlags.map(rf => rf.label).join(", ")}>
+                                    {app.redFlags.map(rf => (
+                                        <span key={rf.id} className="text-xs">{rf.emoji}</span>
+                                    ))}
+                                </div>
+                            )}
                         </div>
                     </div>
                 </div>
