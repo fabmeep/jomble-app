@@ -151,7 +151,7 @@ export default function AddApplicationForm() {
             linkedinUrl: c.linkedinUrl?.trim() || null,
             notes: c.notes?.trim() || null,
           }))
-          .filter((c) => c.name !== "")
+          .filter((c) => c.name)
         : [],
     }
 

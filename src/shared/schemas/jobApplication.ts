@@ -89,28 +89,27 @@ export const jobApplicationSchema = z
       .nullable()
       .or(z.literal("")),
 
-    contacts: z.preprocess(
-      (val) => {
-        if (!Array.isArray(val)) return val;
-        return val.filter((c) => {
-          if (!c || typeof c !== "object") return false;
-          const name = c.name?.trim() || "";
-          const role = c.role?.trim() || "";
-          const email = c.email?.trim() || "";
-          const linkedinUrl = c.linkedinUrl?.trim() || "";
-          const notes = c.notes?.trim() || "";
-          return !(name === "" && role === "" && email === "" && linkedinUrl === "" && notes === "");
-        });
-      },
-      z.array(
-        z.object({
-          name: z.string().min(1, "Contact name is required"),
-          role: z.string().nullable().optional(),
-          email: z.string().email().nullable().or(z.literal("")).optional(),
-          linkedinUrl: z.string().url().nullable().or(z.literal("")).optional(),
-          notes: z.string().nullable().optional(),
-        })
-      )
+    contacts: z.array(
+      z.object({
+        name: z.string().optional().or(z.literal("")),
+        role: z.string().nullable().optional(),
+        email: z.string().email().nullable().or(z.literal("")).optional(),
+        linkedinUrl: z.string().url().nullable().or(z.literal("")).optional(),
+        notes: z.string().nullable().optional(),
+      }).superRefine((val, ctx) => {
+        const hasAnyField = (val.role && val.role.trim() !== "") ||
+                            (val.email && val.email.trim() !== "") ||
+                            (val.linkedinUrl && val.linkedinUrl.trim() !== "") ||
+                            (val.notes && val.notes.trim() !== "");
+        const hasName = val.name && val.name.trim() !== "";
+        if (hasAnyField && !hasName) {
+          ctx.addIssue({
+            code: z.ZodIssueCode.custom,
+            message: "Contact name is required if other fields are filled",
+            path: ["name"],
+          });
+        }
+      })
     ).optional(),
     redFlags: z.array(z.string()).optional(),
   })

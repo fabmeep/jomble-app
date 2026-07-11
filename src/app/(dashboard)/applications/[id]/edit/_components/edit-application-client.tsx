@@ -190,7 +190,7 @@ export default function EditApplicationClient({ initialApplication }: EditApplic
               linkedinUrl: c.linkedinUrl?.trim() || null,
               notes: c.notes?.trim() || null,
             }))
-            .filter((c) => c.name !== "")
+            .filter((c) => c.name)
         : [],
     }
 
