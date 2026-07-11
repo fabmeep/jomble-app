@@ -89,7 +89,7 @@ export default function AddApplicationForm() {
       appliedAt: new Date().toISOString().split("T")[0] as any,
       source: "LINKEDIN",
       excitementScore: 3,
-      contacts: [{ name: "", role: "", email: "", linkedinUrl: "", notes: "" }],
+      contacts: [],
       notes: "",
       redFlags: [],
     },
