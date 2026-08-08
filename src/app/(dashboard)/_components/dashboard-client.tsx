@@ -4,7 +4,7 @@ import { useState, useTransition } from "react"
 import Link from "next/link"
 import { useSearchParams } from "next/navigation"
 import { Search, Plus, Heart, Trash2, ExternalLink, Sparkles, Loader2, MapPin, Calendar, HelpCircle } from "lucide-react"
-import { cn } from "@/lib/utils"
+import { cn, getBgColor, formatDate } from "@/lib/utils"
 import { statusMap } from "@/lib/status"
 import StatusBadge from "@/components/ui/status-badge"
 
@@ -28,23 +28,6 @@ interface Application {
 interface DashboardClientProps {
   initialApplications: Application[]
 }
-
-const colors = [
-  "#FF6B6B", // Coral
-  "#FF8C42", // Amber
-  "#3A86FF", // Blue
-  "#8338EC", // Purple
-  "#06D6A0", // Green
-  "#118AB2", // Teal
-  "#FFD166", // Yellow
-  "#F15BB5", // Pink
-]
-
-const getBgColor = (name: string) => {
-  const code = name.charCodeAt(0) || 0
-  return colors[code % colors.length]
-}
-
 
 export default function DashboardClient({ initialApplications }: DashboardClientProps) {
   const searchParams = useSearchParams()
@@ -75,16 +58,6 @@ export default function DashboardClient({ initialApplications }: DashboardClient
     const matchesStatus = selectedStatus === "ALL" || app.status === selectedStatus
     return matchesSearch && matchesStatus
   })
-
-  // Date formatter
-  const formatDate = (dateInput: Date | string) => {
-    const date = new Date(dateInput)
-    return date.toLocaleDateString("en-US", {
-      month: "short",
-      day: "numeric",
-      year: "numeric",
-    })
-  }
 
   const handleSeed = () => {
     startTransition(async () => {
