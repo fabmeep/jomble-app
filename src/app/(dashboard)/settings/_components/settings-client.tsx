@@ -139,7 +139,7 @@ export default function SettingsClient({
   return (
     <div className="flex-1 overflow-y-auto w-full p-6 scroll-smooth bg-[#F8F7F5]">
       <div className="max-w-3xl mx-auto flex flex-col gap-6 animate-in fade-in duration-200">
-        
+
         {/* Title */}
         <div className="flex flex-col gap-1">
           <h2 className="text-xl font-bold tracking-tight text-[#2D2D2D]">Account settings</h2>
@@ -184,7 +184,7 @@ export default function SettingsClient({
         >
           <div className="flex flex-col gap-4">
             <p className="text-xs text-[#6B6863] leading-normal">
-              Define custom warning flags (e.g., "Low Salary", "Bad Glassdoor reviews", "Micromanagement"). 
+              Define custom warning flags (e.g., "Low Salary", "Bad Glassdoor reviews", "Micromanagement").
               You can attach these tags to applications to easily mark potential issues.
             </p>
 

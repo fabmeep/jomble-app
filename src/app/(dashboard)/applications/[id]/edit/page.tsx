@@ -20,6 +20,10 @@ export default async function EditApplicationPage({ params }: PageProps) {
         orderBy: { createdAt: "asc" },
       },
       redFlags: true,
+      jobDescriptions: {
+        orderBy: { createdAt: "desc" },
+        take: 1,
+      },
     },
   })
 
@@ -31,6 +35,7 @@ export default async function EditApplicationPage({ params }: PageProps) {
   // Format dates to strings for Next.js Server-Client component boundaries
   const formattedApplication = {
     ...application,
+    jobDescription: application.jobDescriptions[0]?.rawText || "",
     appliedAt: application.appliedAt.toISOString().split("T")[0], // Format: YYYY-MM-DD for HTML5 date input
     lastActivityAt: application.lastActivityAt.toISOString(),
     createdAt: application.createdAt.toISOString(),

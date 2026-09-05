@@ -1,29 +1,33 @@
 generator client {
-  provider        = "prisma-client-js"
-  previewFeatures = ["multiSchema"]
+  provider = "prisma-client-js"
 }
 
 datasource db {
-  provider = "postgresql"
-  url      = env("DATABASE_URL")
+  provider  = "postgresql"
+  url       = env("DATABASE_URL")
   directUrl = env("DIRECT_URL")
-  schemas  = ["app_auth", "public"]
+  schemas   = ["app_auth", "public"]
 }
 
 model User {
-  id              String           @id @default(cuid())
-  name            String?
-  email           String           @unique
-  emailVerified   DateTime?
-  image           String?
-  passwordHash    String?
-  ghostThresholdDays Int           @default(30)
-  createdAt       DateTime         @default(now())
-  updatedAt       DateTime         @updatedAt
-  accounts        Account[]
-  sessions        Session[]
-  redFlags        RedFlag[]
-  jobApplications JobApplication[]
+  id                 String              @id @default(cuid())
+  name               String?
+  email              String              @unique
+  emailVerified      DateTime?
+  image              String?
+  passwordHash       String?
+  ghostThresholdDays Int                 @default(30)
+  createdAt          DateTime            @default(now())
+  updatedAt          DateTime            @updatedAt
+  accounts           Account[]
+  sessions           Session[]
+  redFlags           RedFlag[]
+  jobApplications    JobApplication[]
+  llmConfigs         LlmProviderConfig[]
+  masterResumes      MasterResume[]
+  jobDescriptions    JobDescription[]
+  scoreReports       ScoreReport[]
+  tailoredCvs        TailoredCv[]
 
   @@map("users")
   @@schema("app_auth")
@@ -71,29 +75,34 @@ model VerificationToken {
 }
 
 model JobApplication {
-  id              String            @id @default(cuid())
+  id              String                  @id @default(cuid())
   userId          String
   companyName     String
   jobTitle        String
   location        String?
   jobUrl          String?
-  source          JobSource         @default(OTHER)
-  workMode        WorkMode          @default(ON_SITE)
+  source          JobSource               @default(OTHER)
+  workMode        WorkMode                @default(ON_SITE)
+  contractType    ContractType            @default(FULL_TIME)
+  isOutsource     Boolean                 @default(false)
+  agencyName      String?
+  benefits        String[]                @default([])
   salaryMin       Int?
   salaryMax       Int?
-  currency        String?           @default("IDR")
+  currency        String?                 @default("IDR")
   excitementScore Int?
-  status          ApplicationStatus @default(APPLIED)
-  appliedAt       DateTime          @default(now())
-  lastActivityAt  DateTime          @default(now())
-  createdAt       DateTime          @default(now())
-  updatedAt       DateTime          @updatedAt
+  status          ApplicationStatus       @default(APPLIED)
+  appliedAt       DateTime                @default(now())
+  lastActivityAt  DateTime                @default(now())
+  createdAt       DateTime                @default(now())
+  updatedAt       DateTime                @updatedAt
   contacts        Contact[]
-  user            User              @relation(fields: [userId], references: [id], onDelete: Cascade)
+  user            User                    @relation(fields: [userId], references: [id], onDelete: Cascade)
   notes           Note[]
   timelineEvents  TimelineEvent[]
-  redFlags JobApplicationRedFlag[]
-
+  redFlags        JobApplicationRedFlag[]
+  jobDescriptions JobDescription[]
+  tailoredCvs     TailoredCv[]
 
   @@index([userId])
   @@index([userId, status])
@@ -150,11 +159,11 @@ model Contact {
 }
 
 model RedFlag {
-  id          String   @id @default(cuid())
-  userId      String
-  label       String
-  emoji       String   @default("🚩")
-  createdAt   DateTime @default(now())
+  id        String   @id @default(cuid())
+  userId    String
+  label     String
+  emoji     String   @default("🚩")
+  createdAt DateTime @default(now())
 
   // Relationships
   user         User                    @relation(fields: [userId], references: [id], onDelete: Cascade)
@@ -167,18 +176,17 @@ model RedFlag {
 }
 
 model JobApplicationRedFlag {
-  jobAppId  String
-  flagId    String
+  jobAppId String
+  flagId   String
 
   // Relationships
   jobApplication JobApplication @relation(fields: [jobAppId], references: [id], onDelete: Cascade)
-  redFlag        RedFlag        @relation(fields: [flagId],   references: [id], onDelete: Cascade)
+  redFlag        RedFlag        @relation(fields: [flagId], references: [id], onDelete: Cascade)
 
   @@id([jobAppId, flagId])
   @@map("job_application_red_flags")
   @@schema("public")
 }
-
 
 model PrefillToken {
   id        String   @id @default(cuid())
@@ -194,6 +202,136 @@ model PrefillToken {
   @@map("prefill_tokens")
   @@schema("public")
 }
+
+// ------------------------------------------------------
+// CV Tailor & LLM Feature Models
+// ------------------------------------------------------
+
+model LlmProviderConfig {
+  id                    String      @id @default(cuid())
+  userId                String
+  provider              LlmProvider
+  ollamaBaseUrl         String?
+  ollamaModel           String?     @default("qwen2.5:3b")
+  geminiApiKeyEncrypted String?     @db.Text
+  geminiModel           String?     @default("gemini-2.5-flash-lite")
+  isActive              Boolean     @default(true)
+  lastTestedAt          DateTime?
+  lastTestOk            Boolean?
+  createdAt             DateTime    @default(now())
+  updatedAt             DateTime    @updatedAt
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@unique([userId, provider])
+  @@index([userId])
+  @@map("llm_provider_configs")
+  @@schema("public")
+}
+
+model MasterResume {
+  id             String    @id @default(cuid())
+  userId         String
+  title          String    @default("My Master Resume")
+  targetRole     String?
+  rawFileUrl     String?
+  fileName       String?
+  rawText        String?   @db.Text
+  structuredData Json? // StructuredCv schema: contact, summary, experience with stable bullet IDs, education, skills
+  isDefault      Boolean   @default(false)
+  reviewedAt     DateTime? // null until user confirms extraction in UI
+  createdAt      DateTime  @default(now())
+  updatedAt      DateTime  @updatedAt
+
+  user         User          @relation(fields: [userId], references: [id], onDelete: Cascade)
+  scoreReports ScoreReport[]
+  tailoredCvs  TailoredCv[]
+
+  @@index([userId])
+  @@index([userId, isDefault])
+  @@map("master_resumes")
+  @@schema("public")
+}
+
+model JobDescription {
+  id                     String       @id @default(cuid())
+  userId                 String
+  jobAppId               String?
+  companyName            String?
+  jobTitle               String?
+  sourceUrl              String?
+  rawText                String       @db.Text
+  structuredRequirements Json? // JdRequirements schema: required_skills, preferred_skills, responsibilities, keywords
+  scrapeMethod           ScrapeMethod @default(MANUAL_PASTE)
+  createdAt              DateTime     @default(now())
+  updatedAt              DateTime     @updatedAt
+
+  user           User            @relation(fields: [userId], references: [id], onDelete: Cascade)
+  jobApplication JobApplication? @relation(fields: [jobAppId], references: [id], onDelete: SetNull)
+  scoreReports   ScoreReport[]
+  tailoredCvs    TailoredCv[]
+
+  @@index([userId])
+  @@index([jobAppId])
+  @@map("job_descriptions")
+  @@schema("public")
+}
+
+model ScoreReport {
+  id               String   @id @default(cuid())
+  userId           String
+  masterResumeId   String
+  jobDescriptionId String
+  overallScore     Int // 0-100 deterministic computed score
+  breakdown        Json // Component weights: required skills (35%), preferred (15%), semantic (20%), keywords (15%), experience fit (15%)
+  gaps             Json // Deterministic template-filled gap diff list
+  createdAt        DateTime @default(now())
+
+  user           User           @relation(fields: [userId], references: [id], onDelete: Cascade)
+  masterResume   MasterResume   @relation(fields: [masterResumeId], references: [id], onDelete: Cascade)
+  jobDescription JobDescription @relation(fields: [jobDescriptionId], references: [id], onDelete: Cascade)
+  tailoredCvs    TailoredCv[]
+
+  @@index([userId])
+  @@index([masterResumeId])
+  @@index([jobDescriptionId])
+  @@map("score_reports")
+  @@schema("public")
+}
+
+model TailoredCv {
+  id               String           @id @default(cuid())
+  userId           String
+  masterResumeId   String
+  jobDescriptionId String
+  scoreReportId    String?
+  jobAppId         String?
+  version          Int              @default(1)
+  title            String?
+  generatedContent Json // TailoredCvContent: summary, rewritten bullets, matched & missing skills
+  groundingReport  Json // Anti-hallucination audit: per-bullet cosine similarity, pass/flag/reject statuses
+  renderedFileUrl  String?
+  status           TailoredCvStatus @default(DRAFT)
+  createdAt        DateTime         @default(now())
+  updatedAt        DateTime         @updatedAt
+
+  user           User            @relation(fields: [userId], references: [id], onDelete: Cascade)
+  masterResume   MasterResume    @relation(fields: [masterResumeId], references: [id], onDelete: Cascade)
+  jobDescription JobDescription  @relation(fields: [jobDescriptionId], references: [id], onDelete: Cascade)
+  scoreReport    ScoreReport?    @relation(fields: [scoreReportId], references: [id], onDelete: SetNull)
+  jobApplication JobApplication? @relation(fields: [jobAppId], references: [id], onDelete: SetNull)
+
+  @@index([userId])
+  @@index([masterResumeId])
+  @@index([jobDescriptionId])
+  @@index([jobAppId])
+  @@map("tailored_cvs")
+  @@schema("public")
+}
+
+// ------------------------------------------------------
+// Enums
+// ------------------------------------------------------
 
 enum ApplicationStatus {
   APPLIED
@@ -232,12 +370,48 @@ enum JobSource {
   @@schema("public")
 }
 
+enum ContractType { 
+  FULL_TIME
+  PART_TIME
+  CONTRACT
+  INTERN
+  FREELANCE
+  TEMPORARY
+  OTHER
+
+  @@schema("public")
+}
+
 enum TimelineEventType {
   STATUS_CHANGE
   NOTE_ADDED
   CONTACT_ADDED
   AUTO_GHOSTED
   MANUAL_UPDATE
+
+  @@schema("public")
+}
+
+
+
+enum LlmProvider {
+  OLLAMA
+  GEMINI
+
+  @@schema("public")
+}
+
+enum ScrapeMethod {
+  URL_SCRAPE
+  MANUAL_PASTE
+
+  @@schema("public")
+}
+
+enum TailoredCvStatus {
+  DRAFT
+  VERIFIED
+  EXPORTED
 
   @@schema("public")
 }

@@ -24,7 +24,11 @@ import {
   FileText,
   Mail,
   Pencil,
-  X
+  Copy,
+  Sparkles,
+  X,
+  Building2,
+  Gift
 } from "lucide-react"
 import { cn, getInitials } from "@/lib/utils"
 import { statusMap } from "@/lib/status"
@@ -69,6 +73,11 @@ interface Application {
   jobUrl: string | null
   source: string
   workMode: string
+  contractType?: string
+  isOutsource?: boolean
+  agencyName?: string | null
+  benefits?: string[]
+  jobDescription?: string | null
   salaryMin: number | null
   salaryMax: number | null
   currency: string | null
@@ -102,6 +111,7 @@ export default function ApplicationDetailClient({ initialApplication }: Applicat
   const [showStatusDropdown, setShowStatusDropdown] = useState(false)
   const [showDeleteModal, setShowDeleteModal] = useState(false)
   const [isDeleting, setIsDeleting] = useState(false)
+  const [copiedJd, setCopiedJd] = useState(false)
 
   // Notes inputs
   const [newNoteText, setNewNoteText] = useState("")
@@ -143,6 +153,20 @@ export default function ApplicationDetailClient({ initialApplication }: Applicat
     }
     return null
   }, [localApp.salaryMin, localApp.salaryMax, localApp.currency])
+
+  const formatContractType = (type?: string | null) => {
+    if (!type) return "Full-time"
+    switch (type) {
+      case "FULL_TIME": return "Full-time"
+      case "PART_TIME": return "Part-time"
+      case "CONTRACT": return "Contract"
+      case "INTERN": return "Internship"
+      case "FREELANCE": return "Freelance"
+      case "TEMPORARY": return "Temporary"
+      case "OTHER": return "Other"
+      default: return type.charAt(0).toUpperCase() + type.slice(1).toLowerCase().replace(/_/g, " ")
+    }
+  }
 
 
   // Date formatting helpers
@@ -454,7 +478,19 @@ export default function ApplicationDetailClient({ initialApplication }: Applicat
                   <span className="flex items-center gap-1.5 text-xs text-[#6B6863]">
                     <Briefcase className="w-3.5 h-3.5" />
                     {localApp.workMode === "ON_SITE" ? "On-site" : localApp.workMode === "HYBRID" ? "Hybrid" : "Remote"}
+                    {localApp.contractType && (
+                      <>
+                        <span className="text-[#D0CFC9]">•</span>
+                        <span>{formatContractType(localApp.contractType)}</span>
+                      </>
+                    )}
                   </span>
+                  {localApp.isOutsource && (
+                    <span className="flex items-center gap-1.5 text-xs text-amber-700 bg-amber-50 border border-amber-200/70 px-2 py-0.5 rounded-full font-semibold select-none">
+                      <Building2 className="w-3 h-3" />
+                      Outsource{localApp.agencyName ? ` (${localApp.agencyName})` : ""}
+                    </span>
+                  )}
                   {localApp.location && (
                     <span className="flex items-center gap-1.5 text-xs text-[#6B6863]">
                       <MapPin className="w-3.5 h-3.5" />
@@ -585,11 +621,31 @@ export default function ApplicationDetailClient({ initialApplication }: Applicat
                       </span>
                     </div>
                     <div className="flex flex-col gap-1.5">
+                      <span className="text-[10px] font-bold text-[#6B6863] uppercase tracking-wider">Contract Type</span>
+                      <span className="text-[13px] font-semibold text-[#2D2D2D]">
+                        {formatContractType(localApp.contractType)}
+                      </span>
+                    </div>
+                    <div className="flex flex-col gap-1.5">
                       <span className="text-[10px] font-bold text-[#6B6863] uppercase tracking-wider">Currency</span>
                       <span className="text-[13px] font-mono font-semibold text-[#2D2D2D]">
                         {localApp.currency || "USD"}
                       </span>
                     </div>
+                    <div className="flex flex-col gap-1.5">
+                      <span className="text-[10px] font-bold text-[#6B6863] uppercase tracking-wider">Employment Model</span>
+                      <span className="text-[13px] font-semibold text-[#2D2D2D]">
+                        {localApp.isOutsource ? "Outsourced / Agency" : "Direct Hire"}
+                      </span>
+                    </div>
+                    {localApp.isOutsource && localApp.agencyName && (
+                      <div className="flex flex-col gap-1.5">
+                        <span className="text-[10px] font-bold text-[#6B6863] uppercase tracking-wider">Outsource Agency</span>
+                        <span className="text-[13px] font-semibold text-[#2D2D2D]">
+                          {localApp.agencyName}
+                        </span>
+                      </div>
+                    )}
                     <div className="flex flex-col gap-1.5">
                       <span className="text-[10px] font-bold text-[#6B6863] uppercase tracking-wider">Last Activity</span>
                       <span className="text-[13px] font-semibold text-[#2D2D2D]">
@@ -597,6 +653,114 @@ export default function ApplicationDetailClient({ initialApplication }: Applicat
                       </span>
                     </div>
                   </div>
+                </div>
+              </div>
+
+              {/* PANEL: Contract Perks & Benefits */}
+              {localApp.benefits && localApp.benefits.length > 0 && (
+                <div className="bg-white border border-[#E8E6E0] rounded-xl overflow-hidden shadow-2xs">
+                  <div className="px-4.5 py-3.5 border-b border-[#E8E6E0] bg-[#FAF9F7]/50 flex items-center justify-between select-none">
+                    <div className="flex items-center gap-2">
+                      <Gift className="w-3.5 h-3.5 text-[#FF6B6B]" />
+                      <h3 className="font-bold text-[#2D2D2D] text-[13px]">Contract Perks & Benefits</h3>
+                    </div>
+                    <span className="text-[11px] font-mono font-semibold text-[#6B6863]">
+                      {localApp.benefits.length} perk{localApp.benefits.length > 1 ? "s" : ""}
+                    </span>
+                  </div>
+                  <div className="p-4.5">
+                    <div className="flex flex-wrap gap-2">
+                      {localApp.benefits.map((perk, idx) => (
+                        <div
+                          key={idx}
+                          className="inline-flex items-center gap-2 px-3 py-1.5 rounded-lg border border-[#E8E6E0] bg-[#FAF9F7] text-xs font-semibold text-[#2D2D2D]"
+                        >
+                          <span className="w-1.5 h-1.5 rounded-full bg-[#FF6B6B]" />
+                          {perk}
+                        </div>
+                      ))}
+                    </div>
+                  </div>
+                </div>
+              )}
+
+              {/* PANEL: Job Description */}
+              <div className="bg-white border border-[#E8E6E0] rounded-xl overflow-hidden shadow-2xs">
+                <div className="px-4.5 py-3.5 border-b border-[#E8E6E0] bg-[#FAF9F7]/50 flex items-center justify-between select-none">
+                  <div className="flex items-center gap-2">
+                    <FileText className="w-3.5 h-3.5 text-[#0284C7]" />
+                    <h3 className="font-bold text-[#2D2D2D] text-[13px]">Job description</h3>
+                  </div>
+                  {localApp.jobDescription ? (
+                    <div className="flex items-center gap-2">
+                      <button
+                        type="button"
+                        onClick={() => {
+                          if (localApp.jobDescription) {
+                            navigator.clipboard.writeText(localApp.jobDescription)
+                            setCopiedJd(true)
+                            toast.success("Job description copied to clipboard")
+                            setTimeout(() => setCopiedJd(false), 2000)
+                          }
+                        }}
+                        className="inline-flex items-center gap-1 text-xs font-semibold text-[#6B6863] hover:text-[#2D2D2D] px-2 py-1 rounded-md border border-[#E8E6E0] bg-white hover:bg-[#F8F7F5] transition-colors cursor-pointer"
+                        title="Copy job description"
+                      >
+                        {copiedJd ? (
+                          <>
+                            <Check className="w-3 h-3 text-emerald-600" />
+                            <span className="text-emerald-600">Copied</span>
+                          </>
+                        ) : (
+                          <>
+                            <Copy className="w-3 h-3" />
+                            <span>Copy</span>
+                          </>
+                        )}
+                      </button>
+                      <Link
+                        href={`/cv-tailor/new?applicationId=${localApp.id}`}
+                        className="inline-flex items-center gap-1 text-xs font-semibold text-white bg-[#FF6B6B] hover:bg-[#E05353] px-2.5 py-1 rounded-md transition-colors shadow-2xs"
+                      >
+                        <Sparkles className="w-3 h-3" />
+                        <span>Tailor CV</span>
+                      </Link>
+                    </div>
+                  ) : (
+                    <Link
+                      href={`/applications/${localApp.id}/edit`}
+                      className="inline-flex items-center gap-1 text-xs font-semibold text-[#6B6863] hover:text-[#FF6B6B] transition-colors"
+                    >
+                      <Plus className="w-3 h-3" />
+                      <span>Add description</span>
+                    </Link>
+                  )}
+                </div>
+                <div className="p-4.5">
+                  {localApp.jobDescription ? (
+                    <div className="max-h-[280px] overflow-y-auto pr-2 rounded-lg bg-[#FAF9F7]/70 border border-[#E8E6E0]/60 p-3.5">
+                      <p className="text-[13px] text-[#2D2D2D] whitespace-pre-wrap leading-relaxed font-normal selection:bg-[#FFF0F0] selection:text-[#FF6B6B]">
+                        {localApp.jobDescription}
+                      </p>
+                    </div>
+                  ) : (
+                    <div className="flex flex-col items-center justify-center py-6 text-center">
+                      <div className="w-9 h-9 rounded-xl bg-[#F0F7FF] flex items-center justify-center mb-2 text-[#0284C7]">
+                        <FileText className="w-4 h-4" />
+                      </div>
+                      <p className="text-xs font-semibold text-[#2D2D2D]">No job description added</p>
+                      <p className="text-[11px] text-[#6B6863] mt-0.5 max-w-[280px]">
+                        Add the job description to unlock matching analysis and automated CV tailoring.
+                      </p>
+                      <Link
+                        href={`/applications/${localApp.id}/edit`}
+                        className="mt-3 inline-flex items-center gap-1 text-xs font-semibold text-[#FF6B6B] hover:text-[#E05353] border border-[#FF6B6B]/25 hover:bg-[#FFF0F0] px-3 py-1.5 rounded-lg transition-colors"
+                      >
+                        <Pencil className="w-3 h-3" />
+                        Edit to add JD
+                      </Link>
+                    </div>
+                  )}
                 </div>
               </div>
 

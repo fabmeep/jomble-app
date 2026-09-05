@@ -29,6 +29,10 @@ interface Application {
   jobUrl: string | null
   source: string
   workMode: string
+  contractType?: string
+  isOutsource?: boolean
+  agencyName?: string | null
+  benefits?: string[]
   salaryMin: number | null
   salaryMax: number | null
   currency: string | null
@@ -41,6 +45,7 @@ interface Application {
   notes: Note[]
   contacts: Contact[]
   redFlags?: any[]
+  jobDescription?: string | null
 }
 
 interface EditApplicationClientProps {
@@ -59,6 +64,10 @@ export default function EditApplicationClient({ initialApplication }: EditApplic
     jobUrl: initialApplication.jobUrl || "",
     location: initialApplication.location || "",
     workMode: initialApplication.workMode as any,
+    contractType: initialApplication.contractType as any,
+    isOutsource: initialApplication.isOutsource ?? false,
+    agencyName: initialApplication.agencyName || "",
+    benefits: initialApplication.benefits || [],
     currency: initialApplication.currency || "USD",
     salaryMin: initialApplication.salaryMin,
     salaryMax: initialApplication.salaryMax,
@@ -75,6 +84,7 @@ export default function EditApplicationClient({ initialApplication }: EditApplic
     })),
     notes: initialApplication.notes[0]?.content || "",
     redFlags: formattedRedFlags,
+    jobDescription: initialApplication.jobDescription || "",
     updatedAt: initialApplication.updatedAt,
   }
 

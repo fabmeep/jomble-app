@@ -3,7 +3,7 @@
 import { useState, useMemo, useEffect } from "react"
 import Link from "next/link"
 import { useRouter, useSearchParams } from "next/navigation"
-import { ChevronDown, Check, List, Grid, Filter } from "lucide-react"
+import { ChevronDown, Check, List, Grid, Filter, X } from "lucide-react"
 import { cn } from "@/lib/utils"
 import { statusMap } from "@/lib/status"
 import { ListView } from "./kanban/list-views"
@@ -22,6 +22,10 @@ interface Application {
   currency: string | null
   excitementScore: number | null
   status: string
+  contractType?: string | null
+  isOutsource?: boolean
+  agencyName?: string | null
+  benefits?: string[]
   appliedAt: Date
   lastActivityAt: Date
   createdAt: Date
@@ -32,12 +36,34 @@ interface ApplicationsClientProps {
   initialApplications: Application[]
 }
 
+const ACTIVE_STAGES = ["APPLIED", "SCREENING", "INTERVIEW", "OFFER", "ACCEPTED"] as const
+const ARCHIVED_STAGES = ["GHOSTED", "WITHDRAWN", "REJECTED"] as const
+
 export default function ApplicationsClient({ initialApplications }: ApplicationsClientProps) {
   const router = useRouter()
   const searchParams = useSearchParams()
   const [localApps, setLocalApps] = useState<Application[]>(initialApplications)
   const search = searchParams.get("search") || ""
-  const [filterMode, setFilterMode] = useState<string>("ALL") // ALL, ACTIVE, ARCHIVED, or specific status
+
+  // Parse query params on load
+  const stageParam = searchParams.get("stage") || searchParams.get("status") || "ALL"
+  const contractParam = searchParams.get("contract") || "ALL"
+  const sourcingParam = (searchParams.get("sourcing") as "ALL" | "DIRECT" | "OUTSOURCE") || "ALL"
+
+  const getInitialScope = (): "ALL" | "ACTIVE" | "ARCHIVED" => {
+    if (stageParam !== "ALL") {
+      if (ACTIVE_STAGES.includes(stageParam as any)) return "ACTIVE"
+      if (ARCHIVED_STAGES.includes(stageParam as any)) return "ARCHIVED"
+    }
+    const scopeParam = searchParams.get("scope")
+    if (scopeParam === "ACTIVE" || scopeParam === "ARCHIVED") return scopeParam
+    return "ALL"
+  }
+
+  const [scope, setScope] = useState<"ALL" | "ACTIVE" | "ARCHIVED">(getInitialScope)
+  const [stageFilter, setStageFilter] = useState<string>(stageParam)
+  const [outsourceFilter, setOutsourceFilter] = useState<"ALL" | "DIRECT" | "OUTSOURCE">(sourcingParam)
+  const [contractFilter, setContractFilter] = useState<string>(contractParam)
   const [sortBy, setSortBy] = useState<"company" | "appliedAt" | "lastActivity" | "excitement" | "status" | null>("appliedAt")
   const [sortOrder, setSortOrder] = useState<"asc" | "desc" | null>("desc")
   const [viewMode, setViewMode] = useState<"list" | "board">("list")
@@ -47,21 +73,78 @@ export default function ApplicationsClient({ initialApplications }: Applications
 
   const itemsPerPage = 8
 
+  const CONTRACT_OPTIONS = [
+    { key: "ALL", label: "All Contracts" },
+    { key: "FULL_TIME", label: "Full-time" },
+    { key: "INTERN", label: "Internship" },
+    { key: "CONTRACT", label: "Contract" },
+    { key: "PART_TIME", label: "Part-time" },
+    { key: "FREELANCE", label: "Freelance" },
+  ] as const
+
+  const SOURCING_OPTIONS = [
+    { key: "ALL", label: "All Sourcing" },
+    { key: "DIRECT", label: "Direct / In-house" },
+    { key: "OUTSOURCE", label: "Outsource / Agency" },
+  ] as const
+
+  const hasContractFilter = contractFilter !== "ALL"
+  const hasOutsourceFilter = outsourceFilter !== "ALL"
+  const hasStageFilter = stageFilter !== "ALL"
+  const activeFilterCount = (hasContractFilter ? 1 : 0) + (hasOutsourceFilter ? 1 : 0) + (hasStageFilter ? 1 : 0)
+
+  const handleScopeChange = (newScope: "ALL" | "ACTIVE" | "ARCHIVED") => {
+    setScope(newScope)
+    setStageFilter("ALL")
+  }
+
+  const handleSelectStage = (newStage: string) => {
+    setStageFilter(newStage)
+    if (newStage === "ALL") {
+      // Keep current scope
+    } else if (ACTIVE_STAGES.includes(newStage as any)) {
+      setScope("ACTIVE")
+    } else if (ARCHIVED_STAGES.includes(newStage as any)) {
+      setScope("ARCHIVED")
+    }
+  }
+
+  const handleResetAllFilters = () => {
+    setStageFilter("ALL")
+    setContractFilter("ALL")
+    setOutsourceFilter("ALL")
+    setShowMoreFilters(false)
+  }
+
   // Keep local state in sync if props change
   useEffect(() => {
     setLocalApps(initialApplications)
   }, [initialApplications])
 
+  // Synchronize with URL search params changes if user navigates
+  useEffect(() => {
+    const s = searchParams.get("stage") || searchParams.get("status") || "ALL"
+    if (s !== "ALL") {
+      setStageFilter(s)
+      if (ACTIVE_STAGES.includes(s as any)) setScope("ACTIVE")
+      else if (ARCHIVED_STAGES.includes(s as any)) setScope("ARCHIVED")
+    }
+    const c = searchParams.get("contract")
+    if (c) setContractFilter(c)
+    const src = searchParams.get("sourcing") as "ALL" | "DIRECT" | "OUTSOURCE" | null
+    if (src) setOutsourceFilter(src)
+  }, [searchParams])
+
   // Reset pagination on filter or search change
   useEffect(() => {
     setCurrentPage(1)
-  }, [search, filterMode])
+  }, [search, scope, stageFilter, outsourceFilter, contractFilter])
 
   // Count calculations
   const counts = useMemo(() => {
     const all = localApps.length
-    const active = localApps.filter(a => ["APPLIED", "SCREENING", "INTERVIEW", "OFFER", "ACCEPTED"].includes(a.status)).length
-    const archived = localApps.filter(a => ["GHOSTED", "WITHDRAWN", "REJECTED"].includes(a.status)).length
+    const active = localApps.filter(a => ACTIVE_STAGES.includes(a.status as any)).length
+    const archived = localApps.filter(a => ARCHIVED_STAGES.includes(a.status as any)).length
     return { all, active, archived }
   }, [localApps])
 
@@ -72,18 +155,30 @@ export default function ApplicationsClient({ initialApplications }: Applications
         app.companyName.toLowerCase().includes(search.toLowerCase()) ||
         app.jobTitle.toLowerCase().includes(search.toLowerCase())
 
-      let matchesFilter = true
-      if (filterMode === "ACTIVE") {
-        matchesFilter = ["APPLIED", "SCREENING", "INTERVIEW", "OFFER", "ACCEPTED"].includes(app.status)
-      } else if (filterMode === "ARCHIVED") {
-        matchesFilter = ["GHOSTED", "WITHDRAWN", "REJECTED"].includes(app.status)
-      } else if (filterMode !== "ALL") {
-        matchesFilter = app.status === filterMode
+      let matchesStatus = true
+      if (stageFilter !== "ALL") {
+        matchesStatus = app.status === stageFilter
+      } else if (scope === "ACTIVE") {
+        matchesStatus = ACTIVE_STAGES.includes(app.status as any)
+      } else if (scope === "ARCHIVED") {
+        matchesStatus = ARCHIVED_STAGES.includes(app.status as any)
       }
 
-      return matchesSearch && matchesFilter
+      let matchesOutsource = true
+      if (outsourceFilter === "DIRECT") {
+        matchesOutsource = !app.isOutsource
+      } else if (outsourceFilter === "OUTSOURCE") {
+        matchesOutsource = Boolean(app.isOutsource)
+      }
+
+      let matchesContract = true
+      if (contractFilter !== "ALL") {
+        matchesContract = app.contractType === contractFilter
+      }
+
+      return matchesSearch && matchesStatus && matchesOutsource && matchesContract
     })
-  }, [localApps, search, filterMode])
+  }, [localApps, search, scope, stageFilter, outsourceFilter, contractFilter])
 
   // Sort applications helper
   const sortedApps = useMemo(() => {
@@ -186,12 +281,12 @@ export default function ApplicationsClient({ initialApplications }: Applications
         {/* TOOLBAR */}
         <div className="flex flex-wrap items-center gap-2 flex-shrink-0 select-none">
 
-          {/* Quick Filter Chips */}
+          {/* Quick Scope Chips */}
           <button
-            onClick={() => setFilterMode("ALL")}
+            onClick={() => handleScopeChange("ALL")}
             className={cn(
               "filter-chip inline-flex items-center gap-1 px-3 py-1.5 rounded-full border text-xs font-semibold cursor-pointer transition-all duration-150 select-none",
-              filterMode === "ALL"
+              scope === "ALL" && stageFilter === "ALL"
                 ? "bg-[#FFF0F0] border-[#FF6B6B] text-[#FF6B6B]"
                 : "bg-white border-[#E8E6E0] text-[#6B6863] hover:border-[#FF6B6B] hover:text-[#FF6B6B]"
             )}
@@ -200,10 +295,10 @@ export default function ApplicationsClient({ initialApplications }: Applications
           </button>
 
           <button
-            onClick={() => setFilterMode("ACTIVE")}
+            onClick={() => handleScopeChange("ACTIVE")}
             className={cn(
               "filter-chip inline-flex items-center gap-1 px-3 py-1.5 rounded-full border text-xs font-semibold cursor-pointer transition-all duration-150 select-none",
-              filterMode === "ACTIVE"
+              scope === "ACTIVE"
                 ? "bg-[#FFF0F0] border-[#FF6B6B] text-[#FF6B6B]"
                 : "bg-white border-[#E8E6E0] text-[#6B6863] hover:border-[#FF6B6B] hover:text-[#FF6B6B]"
             )}
@@ -212,10 +307,10 @@ export default function ApplicationsClient({ initialApplications }: Applications
           </button>
 
           <button
-            onClick={() => setFilterMode("ARCHIVED")}
+            onClick={() => handleScopeChange("ARCHIVED")}
             className={cn(
               "filter-chip inline-flex items-center gap-1 px-3 py-1.5 rounded-full border text-xs font-semibold cursor-pointer transition-all duration-150 select-none",
-              filterMode === "ARCHIVED"
+              scope === "ARCHIVED"
                 ? "bg-[#FFF0F0] border-[#FF6B6B] text-[#FF6B6B]"
                 : "bg-white border-[#E8E6E0] text-[#6B6863] hover:border-[#FF6B6B] hover:text-[#FF6B6B]"
             )}
@@ -223,67 +318,235 @@ export default function ApplicationsClient({ initialApplications }: Applications
             Archived <span className="font-mono text-[10.5px] opacity-75">{counts.archived}</span>
           </button>
 
-          {/* More Filters Dropdown */}
+          {/* Unified Filters Dropdown */}
           <div className="relative">
             <button
               onClick={() => setShowMoreFilters(!showMoreFilters)}
               className={cn(
-                "filter-chip inline-flex items-center gap-1.5 px-3 py-1.5 rounded-full border text-xs font-semibold cursor-pointer transition-all duration-150 bg-white border-[#E8E6E0] text-[#6B6863] select-none",
-                ["APPLIED", "SCREENING", "INTERVIEW", "OFFER", "ACCEPTED", "GHOSTED", "REJECTED", "WITHDRAWN"].includes(filterMode)
+                "filter-chip inline-flex items-center gap-1.5 px-3 py-1.5 rounded-full border text-xs font-semibold cursor-pointer transition-all duration-150 select-none",
+                activeFilterCount > 0
                   ? "bg-[#FFF0F0] border-[#FF6B6B] text-[#FF6B6B]"
-                  : "hover:border-[#FF6B6B] hover:text-[#FF6B6B]",
+                  : "bg-white border-[#E8E6E0] text-[#6B6863] hover:border-[#FF6B6B] hover:text-[#FF6B6B]",
                 showMoreFilters && "border-[#FF6B6B]"
               )}
             >
               <Filter className="w-3.5 h-3.5" />
-              {["APPLIED", "SCREENING", "INTERVIEW", "OFFER", "ACCEPTED", "GHOSTED", "REJECTED", "WITHDRAWN"].includes(filterMode)
-                ? statusMap[filterMode]?.label
-                : "More filters"}
+              <span>Filters</span>
+              {activeFilterCount > 0 && (
+                <span className="font-mono text-[10px] bg-[#FF6B6B] text-white px-1.5 py-0.2 rounded-full font-bold">
+                  {activeFilterCount}
+                </span>
+              )}
               <ChevronDown className={cn("w-3 h-3 transition-transform", showMoreFilters && "rotate-180")} />
             </button>
 
             {showMoreFilters && (
               <>
                 <div className="fixed inset-0 z-20" onClick={() => setShowMoreFilters(false)} />
-                <div className="absolute left-0 mt-1.5 w-48 bg-white border border-[#E8E6E0] rounded-xl shadow-lg py-1.5 z-30 animate-in fade-in-50 slide-in-from-top-1 duration-150">
-                  <div className="px-2.5 py-1 text-[10px] font-bold text-[#6B6863] uppercase tracking-wider select-none">
-                    Status stages
+                <div className="absolute left-0 mt-1.5 w-64 max-h-[460px] overflow-y-auto bg-white border border-[#E8E6E0] rounded-xl shadow-xl p-2 z-30 animate-in fade-in-50 slide-in-from-top-1 duration-150">
+                  {/* Section 1: Contract Type */}
+                  <div className="px-2 py-1 text-[10px] font-bold text-[#8A8780] uppercase tracking-wider select-none">
+                    Contract Type
                   </div>
-                  {["APPLIED", "SCREENING", "INTERVIEW", "OFFER", "ACCEPTED", "GHOSTED", "REJECTED", "WITHDRAWN"].map((status) => {
-                    const mapped = statusMap[status]
-                    const isActive = filterMode === status
-                    return (
+                  <div className="space-y-0.5">
+                    {CONTRACT_OPTIONS.map((opt) => {
+                      const isSelected = contractFilter === opt.key
+                      return (
+                        <button
+                          key={opt.key}
+                          onClick={() => setContractFilter(opt.key)}
+                          className={cn(
+                            "w-full text-left px-2.5 py-1.5 rounded-lg text-xs flex items-center justify-between cursor-pointer transition-colors",
+                            isSelected
+                              ? "bg-[#FFF0F0] text-[#FF6B6B] font-semibold"
+                              : "text-[#2D2D2D] hover:bg-[#F8F7F5]"
+                          )}
+                        >
+                          <span>{opt.label}</span>
+                          {isSelected && <Check className="w-3.5 h-3.5 text-[#FF6B6B]" />}
+                        </button>
+                      )
+                    })}
+                  </div>
+
+                  <div className="border-t border-[#E8E6E0] my-2" />
+
+                  {/* Section 2: Sourcing Model */}
+                  <div className="px-2 py-1 text-[10px] font-bold text-[#8A8780] uppercase tracking-wider select-none">
+                    Sourcing Model
+                  </div>
+                  <div className="space-y-0.5">
+                    {SOURCING_OPTIONS.map((opt) => {
+                      const isSelected = outsourceFilter === opt.key
+                      return (
+                        <button
+                          key={opt.key}
+                          onClick={() => setOutsourceFilter(opt.key)}
+                          className={cn(
+                            "w-full text-left px-2.5 py-1.5 rounded-lg text-xs flex items-center justify-between cursor-pointer transition-colors",
+                            isSelected
+                              ? "bg-[#FFF0F0] text-[#FF6B6B] font-semibold"
+                              : "text-[#2D2D2D] hover:bg-[#F8F7F5]"
+                          )}
+                        >
+                          <span>{opt.label}</span>
+                          {isSelected && <Check className="w-3.5 h-3.5 text-[#FF6B6B]" />}
+                        </button>
+                      )
+                    })}
+                  </div>
+
+                  <div className="border-t border-[#E8E6E0] my-2" />
+
+                  {/* Section 3: Status Stage */}
+                  <div className="px-2 py-1 text-[10px] font-bold text-[#8A8780] uppercase tracking-wider select-none">
+                    Stage {scope !== "ALL" ? `(${scope === "ACTIVE" ? "Active" : "Archived"})` : ""}
+                  </div>
+                  <div className="space-y-0.5">
+                    <button
+                      onClick={() => handleSelectStage("ALL")}
+                      className={cn(
+                        "w-full text-left px-2.5 py-1.5 rounded-lg text-xs flex items-center justify-between cursor-pointer transition-colors",
+                        stageFilter === "ALL"
+                          ? "bg-[#FFF0F0] text-[#FF6B6B] font-semibold"
+                          : "text-[#2D2D2D] hover:bg-[#F8F7F5]"
+                      )}
+                    >
+                      <span>
+                        {scope === "ACTIVE"
+                          ? "All Active Stages"
+                          : scope === "ARCHIVED"
+                          ? "All Archived Stages"
+                          : "All Stages"}
+                      </span>
+                      {stageFilter === "ALL" && <Check className="w-3.5 h-3.5 text-[#FF6B6B]" />}
+                    </button>
+
+                    {(scope === "ALL" || scope === "ACTIVE") && (
+                      <>
+                        {scope === "ALL" && (
+                          <div className="px-2 pt-2 pb-0.5 text-[9.5px] font-bold text-muted-foreground uppercase tracking-wider">
+                            Active Stages
+                          </div>
+                        )}
+                        {ACTIVE_STAGES.map((status) => {
+                          const mapped = statusMap[status]
+                          const isSelected = stageFilter === status
+                          return (
+                            <button
+                              key={status}
+                              onClick={() => handleSelectStage(status)}
+                              className={cn(
+                                "w-full text-left px-2.5 py-1.5 rounded-lg text-xs flex items-center justify-between cursor-pointer transition-colors",
+                                isSelected
+                                  ? "bg-[#FFF0F0] text-[#FF6B6B] font-semibold"
+                                  : "text-[#2D2D2D] hover:bg-[#F8F7F5]"
+                              )}
+                            >
+                              <span>{mapped?.label}</span>
+                              {isSelected && <Check className="w-3.5 h-3.5 text-[#FF6B6B]" />}
+                            </button>
+                          )
+                        })}
+                      </>
+                    )}
+
+                    {(scope === "ALL" || scope === "ARCHIVED") && (
+                      <>
+                        {scope === "ALL" && (
+                          <div className="px-2 pt-2 pb-0.5 text-[9.5px] font-bold text-muted-foreground uppercase tracking-wider">
+                            Archived Stages
+                          </div>
+                        )}
+                        {ARCHIVED_STAGES.map((status) => {
+                          const mapped = statusMap[status]
+                          const isSelected = stageFilter === status
+                          return (
+                            <button
+                              key={status}
+                              onClick={() => handleSelectStage(status)}
+                              className={cn(
+                                "w-full text-left px-2.5 py-1.5 rounded-lg text-xs flex items-center justify-between cursor-pointer transition-colors",
+                                isSelected
+                                  ? "bg-[#FFF0F0] text-[#FF6B6B] font-semibold"
+                                  : "text-[#2D2D2D] hover:bg-[#F8F7F5]"
+                              )}
+                            >
+                              <span>{mapped?.label}</span>
+                              {isSelected && <Check className="w-3.5 h-3.5 text-[#FF6B6B]" />}
+                            </button>
+                          )
+                        })}
+                      </>
+                    )}
+                  </div>
+
+                  {/* Footer: Reset Button */}
+                  {activeFilterCount > 0 && (
+                    <div className="border-t border-[#E8E6E0] pt-2 mt-2">
                       <button
-                        key={status}
-                        onClick={() => {
-                          setFilterMode(status)
-                          setShowMoreFilters(false)
-                        }}
-                        className="w-full text-left px-3 py-2 text-xs text-[#2D2D2D] hover:bg-[#F8F7F5] flex items-center justify-between cursor-pointer transition-colors"
+                        onClick={handleResetAllFilters}
+                        className="w-full text-center px-2.5 py-1.5 rounded-lg text-xs text-[#FF6B6B] hover:bg-[#FFF0F0] font-semibold cursor-pointer transition-colors"
                       >
-                        <span>{mapped?.label}</span>
-                        {isActive && <Check className="w-3.5 h-3.5 text-[#FF6B6B]" />}
+                        Reset all filters
                       </button>
-                    )
-                  })}
-                  {filterMode !== "ALL" && !["ACTIVE", "ARCHIVED"].includes(filterMode) && (
-                    <>
-                      <div className="border-t border-[#E8E6E0] my-1" />
-                      <button
-                        onClick={() => {
-                          setFilterMode("ALL")
-                          setShowMoreFilters(false)
-                        }}
-                        className="w-full text-left px-3 py-2 text-xs text-[#FF6B6B] hover:bg-[#FFF0F0] font-semibold cursor-pointer transition-colors"
-                      >
-                        Clear filter
-                      </button>
-                    </>
+                    </div>
                   )}
                 </div>
               </>
             )}
           </div>
+
+          {/* Active Filter Tags on Toolbar */}
+          {activeFilterCount > 0 && (
+            <div className="flex flex-wrap items-center gap-1.5 select-none">
+              {hasStageFilter && (
+                <span className="inline-flex items-center gap-1 pl-2.5 pr-1.5 py-1 rounded-full text-xs font-medium bg-[#FFF0F0] border border-[#FF6B6B]/40 text-[#FF6B6B]">
+                  <span>Stage: {statusMap[stageFilter]?.label || stageFilter}</span>
+                  <button
+                    onClick={() => setStageFilter("ALL")}
+                    className="p-0.5 hover:bg-[#FF6B6B]/20 rounded-full cursor-pointer transition-colors"
+                    aria-label="Remove stage filter"
+                  >
+                    <X className="w-3 h-3" />
+                  </button>
+                </span>
+              )}
+
+              {hasContractFilter && (
+                <span className="inline-flex items-center gap-1 pl-2.5 pr-1.5 py-1 rounded-full text-xs font-medium bg-[#FFF0F0] border border-[#FF6B6B]/40 text-[#FF6B6B]">
+                  <span>{CONTRACT_OPTIONS.find((c) => c.key === contractFilter)?.label || contractFilter}</span>
+                  <button
+                    onClick={() => setContractFilter("ALL")}
+                    className="p-0.5 hover:bg-[#FF6B6B]/20 rounded-full cursor-pointer transition-colors"
+                    aria-label="Remove contract filter"
+                  >
+                    <X className="w-3 h-3" />
+                  </button>
+                </span>
+              )}
+
+              {hasOutsourceFilter && (
+                <span className="inline-flex items-center gap-1 pl-2.5 pr-1.5 py-1 rounded-full text-xs font-medium bg-amber-50 border border-amber-300 text-amber-800">
+                  <span>{outsourceFilter === "OUTSOURCE" ? "Outsource / Agency" : "Direct Hire"}</span>
+                  <button
+                    onClick={() => setOutsourceFilter("ALL")}
+                    className="p-0.5 hover:bg-amber-200 rounded-full cursor-pointer transition-colors"
+                    aria-label="Remove sourcing filter"
+                  >
+                    <X className="w-3 h-3" />
+                  </button>
+                </span>
+              )}
+
+              <button
+                onClick={handleResetAllFilters}
+                className="text-[11px] text-[#8A8780] hover:text-[#FF6B6B] underline cursor-pointer transition-colors px-1"
+              >
+                Clear all
+              </button>
+            </div>
+          )}
 
           {/* View Toggle */}
           <div className="flex ml-auto border border-[#E8E6E0] rounded-lg overflow-hidden bg-white">
@@ -321,7 +584,7 @@ export default function ApplicationsClient({ initialApplications }: Applications
             sortBy={sortBy}
             sortOrder={sortOrder}
             search={search}
-            filterMode={filterMode}
+            filterMode={stageFilter !== "ALL" ? stageFilter : scope}
             deletingId={deletingId}
             router={router}
             handleSort={handleSort}
@@ -340,7 +603,7 @@ export default function ApplicationsClient({ initialApplications }: Applications
             deletingId={deletingId}
             handleDelete={handleDelete}
             formatDateShort={formatDateShort}
-            filterMode={filterMode}
+            filterMode={stageFilter !== "ALL" ? stageFilter : scope}
           />
         )}
       </div>

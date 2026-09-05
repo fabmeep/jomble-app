@@ -13,6 +13,9 @@ interface Application {
     excitementScore?: number;
     appliedAt: string;
     jobUrl?: string;
+    isOutsource?: boolean;
+    agencyName?: string | null;
+    benefits?: string[];
     redFlags?: { id: string; label: string; emoji: string }[];
 }
 
@@ -40,6 +43,26 @@ export function ApplicationCard({ app, onNavigate, onDelete, deletingId, formatD
                     <div className="text-[11.5px] text-muted-foreground leading-snug mt-0.5 truncate">
                         {app.jobTitle}
                     </div>
+                    {(app.isOutsource || (app.benefits && app.benefits.length > 0)) && (
+                        <div className="flex items-center gap-1.5 flex-wrap mt-1.5">
+                            {app.isOutsource && (
+                                <span
+                                    className="inline-flex items-center px-1.5 py-0.2 rounded text-[9.5px] font-semibold bg-amber-50 text-amber-700 border border-amber-200/70 truncate max-w-full"
+                                    title={app.agencyName ? `Outsource via ${app.agencyName}` : "Outsourced role"}
+                                >
+                                    Outsource{app.agencyName ? `: ${app.agencyName}` : ""}
+                                </span>
+                            )}
+                            {app.benefits && app.benefits.length > 0 && (
+                                <span
+                                    className="inline-flex items-center px-1.5 py-0.2 rounded text-[9.5px] font-medium bg-secondary text-muted-foreground border border-border shrink-0"
+                                    title={app.benefits.join(" • ")}
+                                >
+                                    🎁 {app.benefits.length}
+                                </span>
+                            )}
+                        </div>
+                    )}
                 </div>
             </div>
 

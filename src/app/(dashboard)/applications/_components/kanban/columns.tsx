@@ -16,6 +16,9 @@ export interface Application {
     appliedAt: Date;
     lastActivityAt: Date;
     excitementScore: number | null;
+    isOutsource?: boolean;
+    agencyName?: string | null;
+    benefits?: string[];
     redFlags?: { id: string; label: string; emoji: string }[];
 }
 
@@ -32,7 +35,7 @@ export const getColumns = (opts: ColumnOptions): ColumnDef<Application>[] => [
     {
         accessorKey: "companyName",
         meta: {
-            className: "w-[45%]"
+            className: "w-[28%]"
         },
         header: () => (
             <div
@@ -53,13 +56,23 @@ export const getColumns = (opts: ColumnOptions): ColumnDef<Application>[] => [
                 <div className="flex items-center gap-3">
                     <CompanyLogo companyName={app.companyName} size="sm" />
                     <div className="min-w-0">
-                        <div className="font-semibold text-[13px] text-[#2D2D2D] truncate" title={app.companyName}>
-                            {app.companyName}
-                        </div>
                         <div className="flex items-center gap-1.5 min-w-0">
+                            <span className="font-semibold text-[13px] text-[#2D2D2D] truncate" title={app.companyName}>
+                                {app.companyName}
+                            </span>
+                        </div>
+                        <div className="flex items-center gap-1.5 min-w-0 mt-0.5">
                             <span className="text-[11.5px] text-[#6B6863] truncate" title={app.jobTitle}>
                                 {app.jobTitle}
                             </span>
+                            {app.benefits && app.benefits.length > 0 && (
+                                <span
+                                    className="inline-flex items-center px-1.5 py-0.2 rounded text-[9.5px] font-medium bg-[#F8F7F5] text-[#6B6863] border border-[#E8E6E0] shrink-0 cursor-default select-none"
+                                    title={app.benefits.join(" • ")}
+                                >
+                                    🎁 {app.benefits.length} perk{app.benefits.length > 1 ? "s" : ""}
+                                </span>
+                            )}
                             {app.redFlags && app.redFlags.length > 0 && (
                                 <div className="flex items-center gap-0.5 flex-shrink-0 select-none" title={app.redFlags.map(rf => rf.label).join(", ")}>
                                     {app.redFlags.map(rf => (
@@ -76,7 +89,7 @@ export const getColumns = (opts: ColumnOptions): ColumnDef<Application>[] => [
     {
         accessorKey: "status",
         meta: {
-            className: "w-[15%]"
+            className: "w-[130px]"
         },
         header: () => (
             <div
@@ -92,6 +105,76 @@ export const getColumns = (opts: ColumnOptions): ColumnDef<Application>[] => [
             </div>
         ),
         cell: ({ getValue }) => <StatusBadge status={getValue<string>()} />
+    },
+    {
+        accessorKey: "contractType",
+        meta: {
+            className: "w-[125px]"
+        },
+        header: () => <span>Contract</span>,
+        cell: ({ getValue }) => {
+            const type = getValue<string | null>()
+            if (!type) return <span className="text-xs text-[#8A8780]">—</span>
+
+            const config: Record<string, { label: string; dot: string; bg: string; text: string; border: string }> = {
+                FULL_TIME: { label: "Full-time", dot: "bg-emerald-500", bg: "bg-emerald-50", text: "text-emerald-700", border: "border-emerald-200/60" },
+                INTERN: { label: "Internship", dot: "bg-blue-500", bg: "bg-blue-50", text: "text-blue-700", border: "border-blue-200/60" },
+                CONTRACT: { label: "Contract", dot: "bg-amber-500", bg: "bg-amber-50", text: "text-amber-700", border: "border-amber-200/60" },
+                PART_TIME: { label: "Part-time", dot: "bg-teal-500", bg: "bg-teal-50", text: "text-teal-700", border: "border-teal-200/60" },
+                FREELANCE: { label: "Freelance", dot: "bg-purple-500", bg: "bg-purple-50", text: "text-purple-700", border: "border-purple-200/60" },
+            }
+
+            const item = config[type] || {
+                label: type,
+                dot: "bg-zinc-400",
+                bg: "bg-zinc-50",
+                text: "text-zinc-700",
+                border: "border-zinc-200"
+            }
+
+            return (
+                <span className={cn(
+                    "inline-flex items-center gap-1.5 px-2 py-0.5 rounded-md text-[11px] font-medium border select-none whitespace-nowrap",
+                    item.bg,
+                    item.text,
+                    item.border
+                )}>
+                    <span className={cn("w-1.5 h-1.5 rounded-full shrink-0", item.dot)} />
+                    {item.label}
+                </span>
+            )
+        }
+    },
+    {
+        id: "sourcing",
+        accessorKey: "isOutsource",
+        meta: {
+            className: "w-[110px]"
+        },
+        header: () => <span>Sourcing</span>,
+        cell: ({ row }) => {
+            const app = row.original
+            if (app.isOutsource) {
+                return (
+                    <span
+                        className="inline-flex items-center gap-1.5 px-2 py-0.5 rounded-md text-[11px] font-medium bg-amber-50 text-amber-800 border border-amber-200/70 select-none whitespace-nowrap"
+                        title={app.agencyName ? `Outsourced via ${app.agencyName}` : "Outsourced role"}
+                    >
+                        <span className="w-1.5 h-1.5 rounded-full bg-amber-500 shrink-0" />
+                        <span>Outsource</span>
+                    </span>
+                )
+            }
+            return (
+                <span
+                    className="inline-flex items-center gap-1.5 px-2 py-0.5 rounded-md text-[11px] font-medium bg-sky-50 text-sky-700 border border-sky-200/60 select-none whitespace-nowrap"
+                    title="Direct in-house hire"
+                >
+                    <span className="w-1.5 h-1.5 rounded-full bg-sky-500 shrink-0" />
+                    <span>Direct</span>
+                </span>
+            )
+        }
     },
     {
         accessorKey: "appliedAt",

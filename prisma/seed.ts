@@ -1,4 +1,4 @@
-import { PrismaClient, ApplicationStatus, WorkMode, JobSource, TimelineEventType } from '@prisma/client'
+import { PrismaClient, ApplicationStatus, WorkMode, JobSource, ContractType, TimelineEventType } from '@prisma/client'
 import bcrypt from 'bcryptjs'
 
 const prisma = new PrismaClient()
@@ -91,6 +91,29 @@ async function main() {
 
     const excitementScore = Math.random() > 0.15 ? getRandomRange(1, 5) : null
 
+    const contractRand = Math.random()
+    let contractType: ContractType = ContractType.FULL_TIME
+    if (contractRand < 0.20) contractType = ContractType.INTERN
+    else if (contractRand < 0.35) contractType = ContractType.CONTRACT
+    else if (contractRand < 0.40) contractType = ContractType.FREELANCE
+
+    const isOutsource = Math.random() < 0.25
+    const agencies = ['Mitrais', 'Accenture', 'Glints TalentHunt', 'Binar Academy', 'Xapiens Teknologi', 'Michael Page']
+    const agencyName = isOutsource ? getRandomElement(agencies) : null
+
+    const allBenefitsPool = [
+      'BPJS Kesehatan',
+      'Private Health Insurance',
+      'Dental & Optical',
+      'THR (13th Month Pay)',
+      'Performance Bonus',
+      'WFH / Equipment Stipend',
+      'Transport & Meal Allowance',
+      'Learning & Book Budget'
+    ]
+    const perksCount = Math.floor(Math.random() * 4)
+    const benefits = [...allBenefitsPool].sort(() => 0.5 - Math.random()).slice(0, perksCount)
+
     // Timeline events
     const timelineEvents: {
       eventType: TimelineEventType;
@@ -99,13 +122,13 @@ async function main() {
       description?: string;
       occurredAt: Date;
     }[] = [
-      {
-        eventType: TimelineEventType.STATUS_CHANGE,
-        newStatus: ApplicationStatus.APPLIED,
-        description: `Applied via ${getRandomElement(sources)}`,
-        occurredAt: appliedAt,
-      }
-    ]
+        {
+          eventType: TimelineEventType.STATUS_CHANGE,
+          newStatus: ApplicationStatus.APPLIED,
+          description: `Applied via ${getRandomElement(sources)}`,
+          occurredAt: appliedAt,
+        }
+      ]
 
     if (status !== ApplicationStatus.APPLIED) {
       const intermediateDate = new Date(appliedAt)
@@ -212,6 +235,10 @@ async function main() {
       jobUrl: `https://www.google.com/search?q=${company}+${title}+jobs`,
       source: getRandomElement(sources),
       workMode: getRandomElement(modes),
+      contractType,
+      isOutsource,
+      agencyName,
+      benefits,
       salaryMin,
       salaryMax,
       currency,

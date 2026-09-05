@@ -3,7 +3,7 @@
 import { useState, useEffect } from "react"
 import { useRouter } from "next/navigation"
 import Link from "next/link"
-import { useForm, useFieldArray } from "react-hook-form"
+import { useForm, useFieldArray, Controller } from "react-hook-form"
 import { zodResolver } from "@hookform/resolvers/zod"
 import { z } from "zod"
 import {
@@ -23,6 +23,12 @@ import {
   Plus,
   Heart,
   FileText,
+  Building2,
+  Check,
+  X,
+  Shield,
+  Gift,
+  Sparkles,
 } from "lucide-react"
 
 import { cn } from "@/lib/utils"
@@ -33,6 +39,13 @@ import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
 import { Textarea } from "@/components/ui/textarea"
 import { Button } from "@/components/ui/button"
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/ui/select"
 
 export type JobApplicationFormInput = z.input<typeof jobApplicationSchema>
 
@@ -66,6 +79,32 @@ const WORK_MODE_OPTIONS = [
   { value: "ON_SITE", label: "On-site" },
 ] as const
 
+const CONTRACT_TYPE_OPTIONS = [
+  { value: "FULL_TIME", label: "Full-time" },
+  { value: "PART_TIME", label: "Part-time" },
+  { value: "CONTRACT", label: "Contract" },
+  { value: "INTERN", label: "Internship" },
+  { value: "FREELANCE", label: "Freelance" },
+  { value: "TEMPORARY", label: "Temporary" },
+  { value: "OTHER", label: "Other" },
+] as const
+
+const BENEFIT_PRESETS = [
+  { id: "BPJS_KESEHATAN", label: "BPJS Kesehatan" },
+  { id: "PRIVATE_HEALTH", label: "Private Health Insurance" },
+  { id: "DENTAL_OPTICAL", label: "Dental & Optical" },
+  { id: "FAMILY_COVERAGE", label: "Family Coverage" },
+  { id: "THR", label: "THR (13th Month Pay)" },
+  { id: "PERFORMANCE_BONUS", label: "Performance Bonus" },
+  { id: "SIGN_ON_BONUS", label: "Sign-on Bonus" },
+  { id: "OVERTIME_PAY", label: "Overtime Pay" },
+  { id: "WFH_ALLOWANCE", label: "WFH / Equipment Stipend" },
+  { id: "TRANSPORT_MEAL", label: "Transport & Meal Allowance" },
+  { id: "WELLNESS_GYM", label: "Wellness & Gym Subsidy" },
+  { id: "LEARNING_BUDGET", label: "Learning & Book Budget" },
+]
+
+
 const STATUS_OPTIONS = [
   { value: "APPLIED", label: "Just applied", bg: "bg-[#E8F5E9] text-[#2E7D32]", border: "peer-checked:border-[#2E7D32] peer-checked:ring-[#2E7D32]/10" },
   { value: "SCREENING", label: "Screening", bg: "bg-[#FFF3E0] text-[#F57C00]", border: "peer-checked:border-[#F57C00] peer-checked:ring-[#F57C00]/10" },
@@ -94,6 +133,10 @@ export function JobApplicationForm({
     jobUrl: initialValues?.jobUrl || "",
     location: initialValues?.location || "",
     workMode: (initialValues?.workMode as any) || "REMOTE",
+    contractType: (initialValues?.contractType as any) || "FULL_TIME",
+    isOutsource: initialValues?.isOutsource ?? false,
+    agencyName: initialValues?.agencyName || "",
+    benefits: initialValues?.benefits || [],
     currency: initialValues?.currency || "USD",
     salaryMin: initialValues?.salaryMin ?? null,
     salaryMax: initialValues?.salaryMax ?? null,
@@ -106,6 +149,7 @@ export function JobApplicationForm({
     contacts: initialValues?.contacts || [],
     notes: initialValues?.notes || "",
     redFlags: initialValues?.redFlags || [],
+    jobDescription: initialValues?.jobDescription || "",
   }
 
   const {
@@ -114,6 +158,7 @@ export function JobApplicationForm({
     handleSubmit,
     watch,
     setValue,
+    getValues,
     formState: { errors, isSubmitting, isDirty },
   } = useForm<JobApplicationFormInput>({
     resolver: zodResolver(jobApplicationSchema),
@@ -126,6 +171,34 @@ export function JobApplicationForm({
   })
 
   const excitementScore = watch("excitementScore")
+  const isOutsource = watch("isOutsource")
+  const selectedBenefits = watch("benefits") || []
+  const [customPerkInput, setCustomPerkInput] = useState("")
+
+  const toggleBenefit = (label: string) => {
+    const current = getValues("benefits") || []
+    if (current.includes(label)) {
+      setValue("benefits", current.filter((b) => b !== label), { shouldDirty: true })
+    } else {
+      setValue("benefits", [...current, label], { shouldDirty: true })
+    }
+  }
+
+  const addCustomPerk = () => {
+    const trimmed = customPerkInput.trim()
+    if (!trimmed) return
+    const current = getValues("benefits") || []
+    if (!current.includes(trimmed)) {
+      setValue("benefits", [...current, trimmed], { shouldDirty: true })
+    }
+    setCustomPerkInput("")
+  }
+
+  const removeBenefit = (label: string) => {
+    const current = getValues("benefits") || []
+    setValue("benefits", current.filter((b) => b !== label), { shouldDirty: true })
+  }
+
   const [availableFlags, setAvailableFlags] = useState<{ id: string; label: string; emoji: string }[]>([])
 
   useEffect(() => {
@@ -149,10 +222,15 @@ export function JobApplicationForm({
     if (data.location) setValue("location", data.location, { shouldDirty: true, shouldValidate: true })
     if (data.jobUrl) setValue("jobUrl", data.jobUrl, { shouldDirty: true, shouldValidate: true })
     if (data.workMode) setValue("workMode", data.workMode, { shouldDirty: true, shouldValidate: true })
+    if (data.contractType) setValue("contractType", data.contractType, { shouldDirty: true, shouldValidate: true })
+    if (data.isOutsource !== undefined) setValue("isOutsource", data.isOutsource, { shouldDirty: true, shouldValidate: true })
+    if (data.agencyName) setValue("agencyName", data.agencyName, { shouldDirty: true, shouldValidate: true })
+    if (data.benefits) setValue("benefits", data.benefits, { shouldDirty: true, shouldValidate: true })
     if (data.salaryMin) setValue("salaryMin", data.salaryMin, { shouldDirty: true, shouldValidate: true })
     if (data.salaryMax) setValue("salaryMax", data.salaryMax, { shouldDirty: true, shouldValidate: true })
     if (data.currency) setValue("currency", data.currency, { shouldDirty: true, shouldValidate: true })
     if (data.source) setValue("source", data.source, { shouldDirty: true, shouldValidate: true })
+    if (data.jobDescription) setValue("jobDescription", data.jobDescription, { shouldDirty: true, shouldValidate: true })
   }
 
   const onSubmit = async (data: JobApplicationFormInput) => {
@@ -160,6 +238,10 @@ export function JobApplicationForm({
 
     const payload = {
       ...data,
+      isOutsource: Boolean(data.isOutsource),
+      agencyName: data.isOutsource && data.agencyName?.trim() ? data.agencyName.trim() : null,
+      benefits: Array.isArray(data.benefits) ? data.benefits : [],
+      jobDescription: data.jobDescription?.trim() || null,
       appliedAt: data.appliedAt ? new Date(data.appliedAt as any).toISOString() : new Date().toISOString(),
       salaryMin: data.salaryMin && !isNaN(Number(data.salaryMin)) ? Number(data.salaryMin) : null,
       salaryMax: data.salaryMax && !isNaN(Number(data.salaryMax)) ? Number(data.salaryMax) : null,
@@ -168,14 +250,14 @@ export function JobApplicationForm({
       notes: data.notes?.trim() || null,
       contacts: data.contacts
         ? data.contacts
-            .map((c) => ({
-              name: c.name?.trim(),
-              role: c.role?.trim() || null,
-              email: c.email?.trim() || null,
-              linkedinUrl: c.linkedinUrl?.trim() || null,
-              notes: c.notes?.trim() || null,
-            }))
-            .filter((c) => c.name)
+          .map((c) => ({
+            name: c.name?.trim(),
+            role: c.role?.trim() || null,
+            email: c.email?.trim() || null,
+            linkedinUrl: c.linkedinUrl?.trim() || null,
+            notes: c.notes?.trim() || null,
+          }))
+          .filter((c) => c.name)
         : [],
     }
 
@@ -196,7 +278,7 @@ export function JobApplicationForm({
 
       const successMsg = mode === "create" ? "Job application created successfully!" : "Job application updated successfully!"
       toast.success(successMsg)
-      
+
       const redirectUrl = mode === "create" ? "/dashboard" : `/applications/${applicationId}`
       router.push(redirectUrl)
       router.refresh()
@@ -348,34 +430,138 @@ export function JobApplicationForm({
             </div>
 
             <div className="flex flex-col gap-1.5">
-              <Label className="text-[12.5px] font-semibold text-[#2D2D2D]">Work mode</Label>
-              <div className="flex gap-2">
-                {WORK_MODE_OPTIONS.map((opt) => (
-                  <div className="flex-1 relative" key={opt.value}>
-                    <input
-                      type="radio"
-                      value={opt.value}
-                      id={`wm-${opt.value}`}
-                      className="sr-only peer"
-                      {...register("workMode")}
-                    />
-                    <label
-                      htmlFor={`wm-${opt.value}`}
+              <Label htmlFor="contractType" className="text-[12.5px] font-semibold text-[#2D2D2D]">
+                Contract type
+              </Label>
+              <Controller
+                control={control}
+                name="contractType"
+                render={({ field }) => (
+                  <Select
+                    value={field.value}
+                    onValueChange={field.onChange}
+                  >
+                    <SelectTrigger
+                      id="contractType"
                       className={cn(
-                        "flex items-center justify-center gap-1.5 py-2.5 border border-[#E8E6E0] rounded-lg text-xs font-semibold text-[#6B6863] bg-white hover:text-[#2D2D2D] transition-colors cursor-pointer select-none",
-                        "peer-checked:border-[#FF6B6B] peer-checked:bg-[#FFF0F0] peer-checked:text-[#FF6B6B]"
+                        "w-full !h-10 text-[13px] font-semibold px-3 rounded-lg border transition-all cursor-pointer select-none",
+                        field.value
+                          ? "bg-[#FFF0F0] border-[#FF6B6B] text-[#FF6B6B] hover:bg-[#FFE5E5] hover:text-[#FF6B6B] focus-visible:border-[#FF6B6B] focus-visible:ring-[#FF6B6B]/20 [&_svg]:text-[#FF6B6B]"
+                          : "bg-white border-[#E8E6E0] text-[#6B6863] hover:border-[#D0CFC9] hover:text-[#2D2D2D]"
                       )}
                     >
-                      {opt.value === "REMOTE" && <Laptop className="w-3.5 h-3.5" />}
-                      {opt.value === "HYBRID" && <Layers className="w-3.5 h-3.5" />}
-                      {opt.value === "ON_SITE" && <MapPinIcon className="w-3.5 h-3.5" />}
-                      {opt.label}
-                    </label>
-                  </div>
-                ))}
-              </div>
+                      <SelectValue placeholder="Select contract type" />
+                    </SelectTrigger>
+                    <SelectContent className="bg-white border border-[#E8E6E0] rounded-xl shadow-lg p-1 z-50">
+                      {CONTRACT_TYPE_OPTIONS.map((opt) => (
+                        <SelectItem
+                          key={opt.value}
+                          value={opt.value}
+                          className="text-[13px] font-medium py-2 px-2.5 rounded-lg cursor-pointer transition-colors focus:bg-[#FFF0F0] focus:text-[#FF6B6B] data-[state=checked]:bg-[#FFF0F0] data-[state=checked]:text-[#FF6B6B] data-[state=checked]:font-semibold [&_svg]:text-[#FF6B6B]"
+                        >
+                          {opt.label}
+                        </SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
+                )}
+              />
+              {errors.contractType && (
+                <span className="text-[11px] text-red-500 font-semibold">{errors.contractType.message}</span>
+              )}
             </div>
           </div>
+
+          <div className="flex flex-col gap-1.5">
+            <Label className="text-[12.5px] font-semibold text-[#2D2D2D]">Work mode</Label>
+            <div className="flex gap-2">
+              {WORK_MODE_OPTIONS.map((opt) => (
+                <div className="flex-1 relative" key={opt.value}>
+                  <input
+                    type="radio"
+                    value={opt.value}
+                    id={`wm-${opt.value}`}
+                    className="sr-only peer"
+                    {...register("workMode")}
+                  />
+                  <label
+                    htmlFor={`wm-${opt.value}`}
+                    className={cn(
+                      "flex items-center justify-center gap-1.5 py-2.5 border border-[#E8E6E0] rounded-lg text-xs font-semibold text-[#6B6863] bg-white hover:text-[#2D2D2D] transition-colors cursor-pointer select-none",
+                      "peer-checked:border-[#FF6B6B] peer-checked:bg-[#FFF0F0] peer-checked:text-[#FF6B6B]"
+                    )}
+                  >
+                    {opt.value === "REMOTE" && <Laptop className="w-3.5 h-3.5" />}
+                    {opt.value === "HYBRID" && <Layers className="w-3.5 h-3.5" />}
+                    {opt.value === "ON_SITE" && <MapPinIcon className="w-3.5 h-3.5" />}
+                    {opt.label}
+                  </label>
+                </div>
+              ))}
+            </div>
+          </div>
+
+          {/* Sourcing / Outsource Model */}
+          <div className="pt-3 border-t border-[#E8E6E0]/60 flex flex-col gap-3">
+            <div className="flex items-center justify-between">
+              <div>
+                <Label htmlFor="isOutsource" className="text-[12.5px] font-semibold text-[#2D2D2D] cursor-pointer">
+                  Outsourced / Agency Role
+                </Label>
+                <p className="text-[11.5px] text-[#6B6863]">
+                  Check if this position is via a third-party vendor, recruiter agency, or staff augmentation.
+                </p>
+              </div>
+              <input
+                type="checkbox"
+                id="isOutsource"
+                className="w-4 h-4 rounded text-[#FF6B6B] border-[#E8E6E0] focus:ring-[#FF6B6B] accent-[#FF6B6B] cursor-pointer"
+                {...register("isOutsource")}
+              />
+            </div>
+
+            {isOutsource && (
+              <div className="flex flex-col gap-1.5 animate-in fade-in duration-150">
+                <Label htmlFor="agencyName" className="text-[12.5px] font-semibold text-[#2D2D2D]">
+                  Vendor / Agency name <span className="text-[11px] font-normal text-[#6B6863] ml-0.5">optional</span>
+                </Label>
+                <div className="relative flex items-center">
+                  <Building2 className="absolute left-3 w-[15px] h-[15px] text-[#6B6863] pointer-events-none" />
+                  <Input
+                    id="agencyName"
+                    placeholder="e.g. Mitrais, Accenture, Glints TalentHunt"
+                    className="pl-9 h-10 text-[13.5px]"
+                    {...register("agencyName")}
+                  />
+                </div>
+              </div>
+            )}
+          </div>
+        </div>
+      </div>
+
+      {/* ── SECTION: Job description ── */}
+      <div className="bg-white border border-[#E8E6E0] rounded-xl overflow-hidden shadow-2xs">
+        <div className="px-4.5 py-3.5 border-b border-[#E8E6E0] bg-[#FAF9F7]/50 flex items-center gap-2.5 select-none">
+          <div className="w-7 h-7 rounded-lg bg-[#E0F2FE] flex items-center justify-center shrink-0">
+            <FileText className="w-3.5 h-3.5 text-[#0284C7]" />
+          </div>
+          <span className="font-bold text-[#2D2D2D] text-[13px]">Job description</span>
+          <span className="text-[11px] text-[#6B6863] ml-auto font-semibold">Optional • Used for CV tailoring</span>
+        </div>
+        <div className="p-5 px-5.5 flex flex-col gap-2">
+          <p className="text-xs text-[#6B6863] leading-normal">
+            Paste the job posting requirements or responsibilities. This powers automatic match scoring and AI CV tailoring.
+          </p>
+          <Textarea
+            id="jobDescription"
+            placeholder="Paste responsibilities, required skills, qualifications, or the full job posting here..."
+            className="text-[13px] min-h-[130px] leading-relaxed font-normal bg-white"
+            {...register("jobDescription")}
+          />
+          {errors.jobDescription && (
+            <span className="text-[11px] text-red-500 font-semibold">{errors.jobDescription.message}</span>
+          )}
         </div>
       </div>
 
@@ -428,6 +614,89 @@ export function JobApplicationForm({
           {errors.salaryMax && (
             <span className="text-[11px] text-red-500 font-semibold">{errors.salaryMax.message}</span>
           )}
+
+          {/* Contract Perks & Benefits */}
+          <div className="pt-4 border-t border-[#E8E6E0]/60 flex flex-col gap-3">
+            <div>
+              <Label className="text-[12.5px] font-semibold text-[#2D2D2D]">
+                Contract Perks & Benefits <span className="text-[11px] font-normal text-[#6B6863] ml-0.5">optional</span>
+              </Label>
+              <p className="text-[11.5px] text-[#6B6863] mt-0.5">
+                Select known contract perks or type custom ones (bonuses, health coverage, stipends).
+              </p>
+            </div>
+
+            {/* Quick Presets */}
+            <div className="flex flex-wrap gap-1.5">
+              {BENEFIT_PRESETS.map((preset) => {
+                const isSelected = selectedBenefits.includes(preset.label)
+                return (
+                  <button
+                    key={preset.id}
+                    type="button"
+                    onClick={() => toggleBenefit(preset.label)}
+                    className={cn(
+                      "inline-flex items-center gap-1.5 px-2.5 py-1.5 rounded-lg text-xs font-medium border transition-all cursor-pointer select-none",
+                      isSelected
+                        ? "bg-[#FFF0F0] border-[#FF6B6B] text-[#FF6B6B] font-semibold shadow-2xs"
+                        : "bg-[#FAF9F7] border-[#E8E6E0] text-[#6B6863] hover:border-[#D0CFC9] hover:text-[#2D2D2D]"
+                    )}
+                  >
+                    {isSelected ? <Check className="w-3 h-3" /> : <Plus className="w-3 h-3 text-[#6B6863]" />}
+                    {preset.label}
+                  </button>
+                )
+              })}
+            </div>
+
+            {/* Custom Perk Input */}
+            <div className="flex items-center gap-2 mt-1">
+              <Input
+                value={customPerkInput}
+                onChange={(e) => setCustomPerkInput(e.target.value)}
+                onKeyDown={(e) => {
+                  if (e.key === "Enter") {
+                    e.preventDefault()
+                    addCustomPerk()
+                  }
+                }}
+                placeholder="Type a custom perk (e.g. Uang Kompensasi PKWT, Laptop Buyout)..."
+                className="h-9 text-xs flex-1"
+              />
+              <Button
+                type="button"
+                variant="outline"
+                size="sm"
+                onClick={addCustomPerk}
+                className="h-9 text-xs font-semibold px-3 cursor-pointer shrink-0 border-[#E8E6E0] text-[#2D2D2D] hover:bg-[#F8F7F5]"
+              >
+                <Plus className="w-3.5 h-3.5 mr-1" /> Add
+              </Button>
+            </div>
+
+            {/* Active Selected Badges */}
+            {selectedBenefits.length > 0 && (
+              <div className="flex flex-wrap items-center gap-1.5 mt-1 pt-2 border-t border-[#E8E6E0]/40">
+                <span className="text-[11px] font-semibold text-[#6B6863] mr-1">Selected:</span>
+                {selectedBenefits.map((perk) => (
+                  <span
+                    key={perk}
+                    className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full text-xs font-medium bg-[#FFF0F0] text-[#FF6B6B] border border-[#FF6B6B]/20"
+                  >
+                    {perk}
+                    <button
+                      type="button"
+                      onClick={() => removeBenefit(perk)}
+                      className="hover:text-red-700 transition-colors cursor-pointer"
+                      title="Remove perk"
+                    >
+                      <X className="w-3 h-3" />
+                    </button>
+                  </span>
+                ))}
+              </div>
+            )}
+          </div>
         </div>
       </div>
 

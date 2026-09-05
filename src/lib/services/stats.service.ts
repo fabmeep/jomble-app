@@ -44,6 +44,59 @@ export class StatsService {
 
     const total = Object.values(byStatus).reduce((sum, count) => sum + count, 0);
 
+    // 2b. Fetch by-contractType counts
+    const contractCounts = await prisma.jobApplication.groupBy({
+      by: ["contractType"],
+      where: { userId },
+      _count: { contractType: true },
+    });
+
+    const byContractType: Record<string, number> = {
+      FULL_TIME: 0,
+      PART_TIME: 0,
+      CONTRACT: 0,
+      INTERN: 0,
+      FREELANCE: 0,
+      TEMPORARY: 0,
+      OTHER: 0,
+    };
+
+    contractCounts.forEach((item) => {
+      if (item.contractType) {
+        byContractType[item.contractType] = item._count.contractType;
+      }
+    });
+
+    // 2c. Fetch by-sourcing counts
+    const outsourceCount = await prisma.jobApplication.count({
+      where: { userId, isOutsource: true },
+    });
+    const directCount = Math.max(0, total - outsourceCount);
+    const outsourceRate =
+      total > 0 ? parseFloat(((outsourceCount / total) * 100).toFixed(1)) : 0;
+
+    const topAgenciesData = await prisma.jobApplication.groupBy({
+      by: ["agencyName"],
+      where: { userId, isOutsource: true, agencyName: { not: null } },
+      _count: { agencyName: true },
+      orderBy: { _count: { agencyName: "desc" } },
+      take: 3,
+    });
+
+    const topAgencies = topAgenciesData
+      .filter((a) => a.agencyName && a.agencyName.trim().length > 0)
+      .map((a) => ({
+        name: a.agencyName as string,
+        count: a._count.agencyName,
+      }));
+
+    const bySourcing = {
+      direct: directCount,
+      outsource: outsourceCount,
+      outsourceRate,
+      topAgencies,
+    };
+
     const respondedCount =
       byStatus.SCREENING +
       byStatus.INTERVIEW +
@@ -204,6 +257,8 @@ export class StatsService {
         responseRate,
         ghostedRate,
         byStatus,
+        byContractType,
+        bySourcing,
         addedLast7Days,
         avgDaysToReply,
       },

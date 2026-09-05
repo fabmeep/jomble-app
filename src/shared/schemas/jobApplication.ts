@@ -27,6 +27,16 @@ export const ApplicationStatusEnum = z.enum([
   "GHOSTED",
 ]);
 
+export const ContractTypeEnum = z.enum([
+  "FULL_TIME",
+  "PART_TIME",
+  "CONTRACT",
+  "INTERN",
+  "FREELANCE",
+  "TEMPORARY",
+  "OTHER",
+]);
+
 export const jobApplicationSchema = z
   .object({
     companyName: z
@@ -51,6 +61,15 @@ export const jobApplicationSchema = z
       .or(z.literal("")),
     source: JobSourceEnum.default("OTHER"),
     workMode: WorkModeEnum.default("ON_SITE"),
+    contractType: ContractTypeEnum.default("FULL_TIME"),
+    isOutsource: z.boolean().default(false),
+    agencyName: z
+      .string()
+      .max(100, "Agency name must be at most 100 characters")
+      .optional()
+      .nullable()
+      .or(z.literal("")),
+    benefits: z.array(z.string().max(100)).default([]),
     salaryMin: z
       .coerce
       .number()
@@ -89,6 +108,14 @@ export const jobApplicationSchema = z
       .nullable()
       .or(z.literal("")),
 
+    // Optional field to capture raw job description text for matching and CV tailoring
+    jobDescription: z
+      .string()
+      .max(50000, "Job description must be at most 50000 characters")
+      .optional()
+      .nullable()
+      .or(z.literal("")),
+
     contacts: z.array(
       z.object({
         name: z.string().optional().or(z.literal("")),
@@ -98,9 +125,9 @@ export const jobApplicationSchema = z
         notes: z.string().nullable().optional(),
       }).superRefine((val, ctx) => {
         const hasAnyField = (val.role && val.role.trim() !== "") ||
-                            (val.email && val.email.trim() !== "") ||
-                            (val.linkedinUrl && val.linkedinUrl.trim() !== "") ||
-                            (val.notes && val.notes.trim() !== "");
+          (val.email && val.email.trim() !== "") ||
+          (val.linkedinUrl && val.linkedinUrl.trim() !== "") ||
+          (val.notes && val.notes.trim() !== "");
         const hasName = val.name && val.name.trim() !== "";
         if (hasAnyField && !hasName) {
           ctx.addIssue({

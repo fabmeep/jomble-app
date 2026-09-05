@@ -18,6 +18,13 @@ export interface Stats {
   responseRate: number
   ghostedRate: number
   byStatus: Record<string, number>
+  byContractType?: Record<string, number>
+  bySourcing?: {
+    direct: number
+    outsource: number
+    outsourceRate: number
+    topAgencies: { name: string; count: number }[]
+  }
   avgDaysToReply: number
 }
 

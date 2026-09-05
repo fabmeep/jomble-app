@@ -1,5 +1,5 @@
 import { prisma } from "@/lib/prisma";
-import { jobApplicationSchema, JobApplicationInput } from "@/shared/schemas/jobApplication";
+import { jobApplicationSchema } from "@/shared/schemas/jobApplication";
 
 export class ApplicationsService {
   /**
@@ -51,12 +51,15 @@ export class ApplicationsService {
    */
   static async createApplication(userId: string, input: unknown) {
     const validatedData = jobApplicationSchema.parse(input);
-    const { notes, contacts, redFlags, ...applicationData } = validatedData;
+    const { notes, contacts, redFlags, jobDescription, ...applicationData } = validatedData;
 
     return prisma.jobApplication.create({
       data: {
         userId,
         ...applicationData,
+        isOutsource: applicationData.isOutsource ?? false,
+        agencyName: applicationData.isOutsource && applicationData.agencyName ? applicationData.agencyName.trim() : null,
+        benefits: applicationData.benefits || [],
         salaryMin: applicationData.salaryMin ?? null,
         salaryMax: applicationData.salaryMax ?? null,
         excitementScore: applicationData.excitementScore ?? 3,
@@ -67,6 +70,20 @@ export class ApplicationsService {
           ? {
               redFlags: {
                 create: redFlags.map((flagId: string) => ({ flagId })),
+              },
+            }
+          : {}),
+        ...(jobDescription && jobDescription.trim().length > 0
+          ? {
+              jobDescriptions: {
+                create: {
+                  userId,
+                  companyName: applicationData.companyName,
+                  jobTitle: applicationData.jobTitle,
+                  sourceUrl: applicationData.jobUrl || null,
+                  rawText: jobDescription.trim(),
+                  scrapeMethod: "MANUAL_PASTE",
+                },
               },
             }
           : {}),
@@ -136,7 +153,7 @@ export class ApplicationsService {
 
     // 2. Validate input
     const validatedData = jobApplicationSchema.parse(input);
-    const { notes, contacts, redFlags, ...applicationData } = validatedData;
+    const { notes, contacts, redFlags, jobDescription, ...applicationData } = validatedData;
 
     return prisma.$transaction(async (tx) => {
       // Create status change timeline event if status changed
@@ -147,6 +164,9 @@ export class ApplicationsService {
         where: { id },
         data: {
           ...applicationData,
+          isOutsource: applicationData.isOutsource ?? false,
+          agencyName: applicationData.isOutsource && applicationData.agencyName ? applicationData.agencyName.trim() : null,
+          benefits: applicationData.benefits || [],
           salaryMin: applicationData.salaryMin ?? null,
           salaryMax: applicationData.salaryMax ?? null,
           lastActivityAt: new Date(),
@@ -228,6 +248,42 @@ export class ApplicationsService {
               jobAppId: id,
               flagId,
             })),
+          });
+        }
+      }
+
+      // Sync job description
+      if (jobDescription !== undefined) {
+        const existingJd = await tx.jobDescription.findFirst({
+          where: { jobAppId: id },
+          orderBy: { createdAt: "desc" },
+        });
+
+        if (existingJd) {
+          if (jobDescription && jobDescription.trim().length > 0) {
+            await tx.jobDescription.update({
+              where: { id: existingJd.id },
+              data: {
+                rawText: jobDescription.trim(),
+                companyName: applicationData.companyName,
+                jobTitle: applicationData.jobTitle,
+                sourceUrl: applicationData.jobUrl || null,
+              },
+            });
+          } else {
+            await tx.jobDescription.delete({ where: { id: existingJd.id } });
+          }
+        } else if (jobDescription && jobDescription.trim().length > 0) {
+          await tx.jobDescription.create({
+            data: {
+              userId,
+              jobAppId: id,
+              companyName: applicationData.companyName,
+              jobTitle: applicationData.jobTitle,
+              sourceUrl: applicationData.jobUrl || null,
+              rawText: jobDescription.trim(),
+              scrapeMethod: "MANUAL_PASTE",
+            },
           });
         }
       }

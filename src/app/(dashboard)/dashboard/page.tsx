@@ -80,7 +80,12 @@ export default function Dashboard() {
 
           {/* Sidebar Area */}
           <div className="lg:col-span-1 space-y-4">
-            <PipelineFunnel byStatus={data.stats.byStatus} />
+            <PipelineFunnel
+              byStatus={data.stats.byStatus}
+              byContractType={data.stats.byContractType}
+              bySourcing={data.stats.bySourcing}
+              total={total}
+            />
             <HotLeads leads={data.hottestLeads} />
           </div>
         </div>

@@ -22,6 +22,10 @@ export default async function ApplicationDetailPage({ params }: { params: Promis
           redFlag: true,
         },
       },
+      jobDescriptions: {
+        orderBy: { createdAt: "desc" },
+        take: 1,
+      },
     },
   })
 
@@ -36,6 +40,7 @@ export default async function ApplicationDetailPage({ params }: { params: Promis
   // Format dates to avoid serialization issues
   const formattedApplication = {
     ...application,
+    jobDescription: application.jobDescriptions[0]?.rawText || null,
     appliedAt: new Date(application.appliedAt),
     lastActivityAt: new Date(application.lastActivityAt),
     createdAt: new Date(application.createdAt),
