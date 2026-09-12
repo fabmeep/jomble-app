@@ -1,10 +1,19 @@
 import { NextResponse } from "next/server"
+import { getFastApiBaseUrl } from "@/lib/fastapi"
+import { isCvTailorEnabled } from "@/lib/feature-flags"
 
 export async function POST(req: Request) {
+  if (!isCvTailorEnabled()) {
+    return NextResponse.json(
+      { ok: false, message: "LLM provider testing is disabled on this deployment." },
+      { status: 503 }
+    );
+  }
+
   try {
     const body = await req.json().catch(() => ({}))
     const { provider, geminiApiKey, geminiModel, ollamaBaseUrl, ollamaModel } = body
-    const backendUrl = process.env.NEXT_PUBLIC_FASTAPI_URL || "http://localhost:8000"
+    const backendUrl = getFastApiBaseUrl()
 
     const startTime = Date.now()
 

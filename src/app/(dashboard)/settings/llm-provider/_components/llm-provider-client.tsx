@@ -13,6 +13,7 @@ import { Tabs, TabsList, TabsTrigger, TabsContent } from "@/components/ui/tabs"
 
 interface LlmProviderClientProps {
   initialConfig: LlmProviderConfig
+  isEmbedded?: boolean
 }
 
 const PRESET_GEMINI_MODELS = [
@@ -23,7 +24,7 @@ const PRESET_GEMINI_MODELS = [
   { value: "gemini-3.7-flash", label: "gemini-3.7-flash (Extended Reasoning)" },
 ]
 
-export default function LlmProviderClient({ initialConfig }: LlmProviderClientProps) {
+export default function LlmProviderClient({ initialConfig, isEmbedded = false }: LlmProviderClientProps) {
   const [provider, setProvider] = useState<LlmProviderType>(initialConfig.provider || "GEMINI")
   const [ollamaBaseUrl, setOllamaBaseUrl] = useState(initialConfig.ollamaBaseUrl || "http://localhost:11434")
   const [ollamaModel, setOllamaModel] = useState(initialConfig.ollamaModel || "qwen2.5:3b")
@@ -127,40 +128,40 @@ export default function LlmProviderClient({ initialConfig }: LlmProviderClientPr
     }
   }
 
-  return (
-    <div className="flex-1 overflow-y-auto w-full p-6 scroll-smooth bg-[#F8F7F5]">
-      <div className="max-w-3xl mx-auto flex flex-col gap-6 animate-in fade-in duration-200">
-        
-        {/* Title */}
-        <div className="flex items-center justify-between">
-          <div className="flex flex-col gap-1">
-            <div className="flex items-center gap-2">
-              <h2 className="text-xl font-bold tracking-tight text-[#2D2D2D]">LLM Provider Settings</h2>
-              <Badge className="bg-[#FFF0F0] text-[#FF6B6B] border-[#FF6B6B]/20 hover:bg-[#FFF0F0] font-semibold text-[11px]">
-                BYOK Architecture
-              </Badge>
+  const mainCard = (
+    <Card className="border-[#E8E6E0] shadow-xs bg-white">
+      <CardHeader className="border-b border-[#E8E6E0]/60 pb-4">
+        <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3">
+          <div className="flex items-center gap-3">
+            <div className="w-9 h-9 rounded-lg bg-[#FFF0F0] text-[#FF6B6B] flex items-center justify-center font-bold">
+              <Bot className="w-5 h-5" />
             </div>
-            <p className="text-sm text-[#6B6863]">
-              Configure your local Ollama server or personal Gemini API key to power CV tailoring.
-            </p>
+            <div>
+              <CardTitle className="text-base text-[#2D2D2D]">Select Provider</CardTitle>
+              <CardDescription className="text-xs text-[#6B6863]">
+                Choose between local zero-cost privacy or cloud AI inference.
+              </CardDescription>
+            </div>
+          </div>
+
+          <div className="flex items-center gap-2 self-start sm:self-auto bg-[#F8F7F5] border border-[#E8E6E0] px-3 py-1.5 rounded-lg">
+            <span className="text-[11px] font-semibold text-[#6B6863]">Active LLM:</span>
+            <Badge className="bg-[#F0FDF4] text-[#166534] border-[#BBF7D0] text-[11px] font-semibold py-0.5 px-2 flex items-center gap-1">
+              {initialConfig.provider === "GEMINI" ? (
+                <>
+                  <Sparkles className="w-3 h-3 text-[#4285F4]" />
+                  <span>Google Gemini ({initialConfig.geminiModel || "gemini-3.7-flash"})</span>
+                </>
+              ) : (
+                <>
+                  <Zap className="w-3 h-3 text-[#FF8C42]" />
+                  <span>Ollama ({initialConfig.ollamaModel || "qwen2.5:3b"})</span>
+                </>
+              )}
+            </Badge>
           </div>
         </div>
-
-        {/* Main Config Card */}
-        <Card className="border-[#E8E6E0] shadow-xs bg-white">
-          <CardHeader className="border-b border-[#E8E6E0]/60 pb-4">
-            <div className="flex items-center gap-3">
-              <div className="w-9 h-9 rounded-lg bg-[#FFF0F0] text-[#FF6B6B] flex items-center justify-center font-bold">
-                <Bot className="w-5 h-5" />
-              </div>
-              <div>
-                <CardTitle className="text-base text-[#2D2D2D]">Select Provider</CardTitle>
-                <CardDescription className="text-xs text-[#6B6863]">
-                  Choose between local zero-cost privacy or cloud AI inference.
-                </CardDescription>
-              </div>
-            </div>
-          </CardHeader>
+      </CardHeader>
 
           <CardContent className="pt-6 flex flex-col gap-6">
             
@@ -173,17 +174,22 @@ export default function LlmProviderClient({ initialConfig }: LlmProviderClientPr
               }}
               className="w-full"
             >
-              <TabsList className="grid grid-cols-2 w-full bg-[#F8F7F5] border border-[#E8E6E0] p-1 h-auto rounded-xl">
+              <TabsList
+                style={{ height: "44px", padding: "4px" }}
+                className="grid grid-cols-2 w-full bg-[#F8F7F5] border border-[#E8E6E0] rounded-xl overflow-hidden gap-1 items-center"
+              >
                 <TabsTrigger
                   value="GEMINI"
-                  className="py-2.5 rounded-lg font-semibold text-xs data-[state=active]:bg-white data-[state=active]:text-[#FF6B6B] data-[state=active]:shadow-xs transition-all flex items-center gap-2 cursor-pointer"
+                  style={{ height: "34px" }}
+                  className="rounded-lg font-semibold text-xs data-[state=active]:bg-white data-[state=active]:text-[#FF6B6B] data-[state=active]:shadow-xs transition-all flex items-center justify-center gap-2 cursor-pointer"
                 >
                   <Sparkles className="w-4 h-4 text-[#4285F4]" />
                   <span>Google Gemini (BYOK)</span>
                 </TabsTrigger>
                 <TabsTrigger
                   value="OLLAMA"
-                  className="py-2.5 rounded-lg font-semibold text-xs data-[state=active]:bg-white data-[state=active]:text-[#FF6B6B] data-[state=active]:shadow-xs transition-all flex items-center gap-2 cursor-pointer"
+                  style={{ height: "34px" }}
+                  className="rounded-lg font-semibold text-xs data-[state=active]:bg-white data-[state=active]:text-[#FF6B6B] data-[state=active]:shadow-xs transition-all flex items-center justify-center gap-2 cursor-pointer"
                 >
                   <Zap className="w-4 h-4 text-[#FF8C42]" />
                   <span>Ollama (Local & Free)</span>
@@ -359,6 +365,35 @@ export default function LlmProviderClient({ initialConfig }: LlmProviderClientPr
             </Button>
           </CardFooter>
         </Card>
+  )
+
+  if (isEmbedded) {
+    return (
+      <div className="flex flex-col gap-4 animate-in fade-in duration-200">
+        {mainCard}
+      </div>
+    )
+  }
+
+  return (
+    <div className="flex-1 overflow-y-auto w-full p-6 scroll-smooth bg-[#F8F7F5]">
+      <div className="max-w-3xl mx-auto flex flex-col gap-6 animate-in fade-in duration-200">
+        {/* Title */}
+        <div className="flex items-center justify-between">
+          <div className="flex flex-col gap-1">
+            <div className="flex items-center gap-2">
+              <h2 className="text-xl font-bold tracking-tight text-[#2D2D2D]">LLM Provider Settings</h2>
+              <Badge className="bg-[#FFF0F0] text-[#FF6B6B] border-[#FF6B6B]/20 hover:bg-[#FFF0F0] font-semibold text-[11px]">
+                BYOK Architecture
+              </Badge>
+            </div>
+            <p className="text-sm text-[#6B6863]">
+              Configure your local Ollama server or personal Gemini API key to power CV tailoring.
+            </p>
+          </div>
+        </div>
+
+        {mainCard}
       </div>
     </div>
   )

@@ -3,10 +3,16 @@ import { getUserId } from "@/lib/session";
 import { CvService } from "@/lib/services/cv.service";
 import { apiSuccess, apiUnauthorized, apiError, apiBadRequest } from "@/lib/api-response";
 import { uploadResumeFile } from "@/lib/storage";
+import { getFastApiBaseUrl } from "@/lib/fastapi";
+import { isCvTailorEnabled } from "@/lib/feature-flags";
 
-const FASTAPI_BASE_URL = process.env.NEXT_PUBLIC_FASTAPI_URL || "http://127.0.0.1:8000";
+const FASTAPI_BASE_URL = getFastApiBaseUrl();
 
 export async function POST(req: NextRequest) {
+  if (!isCvTailorEnabled()) {
+    return apiError("CV upload and AI parsing are disabled on this deployment.", 503);
+  }
+
   try {
     const userId = await getUserId();
     const formData = await req.formData();

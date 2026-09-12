@@ -1,11 +1,13 @@
 import React from "react"
 import { auth, signOut } from "@/auth"
 import { prisma } from "@/lib/prisma"
-import { LayoutDashboard, Briefcase, Settings, LogOut } from "lucide-react"
+import { LayoutDashboard, Briefcase, Settings, LogOut, Sparkles } from "lucide-react"
 import NavItem from "./nav-item"
+import { isCvTailorEnabled } from "@/lib/feature-flags"
 
 export default async function Sidebar() {
   const session = await auth()
+  const cvTailorEnabled = isCvTailorEnabled()
 
   const userId = session?.user?.id
   const name = session?.user?.name || "User"
@@ -48,6 +50,19 @@ export default async function Sidebar() {
           icon={<Briefcase className="w-4 h-4" />}
           badgeCount={appCount}
         />
+
+        {cvTailorEnabled && (
+          <>
+            <div className="text-[10px] font-semibold text-[#6B6863] tracking-[0.08em] uppercase px-2 py-1.5 mt-4 mb-1 select-none">
+              Tools
+            </div>
+            <NavItem
+              href="/cv-tailor"
+              label="CV Tailor"
+              icon={<Sparkles className="w-4 h-4" />}
+            />
+          </>
+        )}
 
         <div className="text-[10px] font-semibold text-[#6B6863] tracking-[0.08em] uppercase px-2 py-1.5 mt-4 mb-1 select-none">
           Account

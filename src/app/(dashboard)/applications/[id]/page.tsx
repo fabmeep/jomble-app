@@ -25,6 +25,18 @@ export default async function ApplicationDetailPage({ params }: { params: Promis
       jobDescriptions: {
         orderBy: { createdAt: "desc" },
         take: 1,
+        include: {
+          tailoredCvs: {
+            include: { scoreReport: true },
+            orderBy: { createdAt: "desc" },
+          },
+        },
+      },
+      tailoredCvs: {
+        include: {
+          scoreReport: true,
+        },
+        orderBy: { createdAt: "desc" },
       },
     },
   })
@@ -37,6 +49,15 @@ export default async function ApplicationDetailPage({ params }: { params: Promis
     )
   }
 
+  // Deduplicate any tailored CVs associated directly with the application or its job description
+  const allTailoredCvs = [
+    ...(application.tailoredCvs || []),
+    ...(application.jobDescriptions?.flatMap((jd) => jd.tailoredCvs || []) || []),
+  ]
+  const uniqueTailoredCvs = Array.from(
+    new Map(allTailoredCvs.map((cv) => [cv.id, cv])).values()
+  ).sort((a, b) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime())
+
   // Format dates to avoid serialization issues
   const formattedApplication = {
     ...application,
@@ -45,22 +66,32 @@ export default async function ApplicationDetailPage({ params }: { params: Promis
     lastActivityAt: new Date(application.lastActivityAt),
     createdAt: new Date(application.createdAt),
     updatedAt: new Date(application.updatedAt),
-    notes: application.notes.map(note => ({
+    notes: application.notes.map((note) => ({
       ...note,
       createdAt: new Date(note.createdAt),
     })),
-    contacts: application.contacts.map(contact => ({
+    contacts: application.contacts.map((contact) => ({
       ...contact,
       createdAt: new Date(contact.createdAt),
     })),
-    timelineEvents: application.timelineEvents.map(event => ({
+    timelineEvents: application.timelineEvents.map((event) => ({
       ...event,
       occurredAt: new Date(event.occurredAt),
     })),
-    redFlags: application.redFlags.map(rf => ({
+    redFlags: application.redFlags.map((rf) => ({
       id: rf.redFlag.id,
       label: rf.redFlag.label,
       emoji: rf.redFlag.emoji,
+    })),
+    tailoredCvs: uniqueTailoredCvs.map((cv) => ({
+      id: cv.id,
+      version: cv.version,
+      title: cv.title || `${application.jobTitle} - ${application.companyName}`,
+      status: cv.status,
+      renderedFileUrl: cv.renderedFileUrl,
+      createdAt: new Date(cv.createdAt),
+      overallScore: cv.scoreReport?.overallScore ?? null,
+      groundingReport: (cv.groundingReport as any) || [],
     })),
   }
 

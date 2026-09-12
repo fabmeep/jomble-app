@@ -1,0 +1,13 @@
+node_modules
+.next
+.git
+.gitignore
+backend
+venv
+*.md
+*.log
+.env.local
+.env*.local
+coverage
+.turbo
+.vercel

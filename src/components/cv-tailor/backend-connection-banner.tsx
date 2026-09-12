@@ -1,7 +1,7 @@
 "use client"
 
 import React, { useState } from "react"
-import { Server, RefreshCw, Terminal, CheckCircle2, AlertCircle, Copy, Check } from "lucide-react"
+import { Server, RefreshCw, Terminal, CheckCircle2, Copy, Check } from "lucide-react"
 import { Button } from "@/components/ui/button"
 import { Badge } from "@/components/ui/badge"
 import { BackendHealthState } from "@/hooks/use-backend-health"

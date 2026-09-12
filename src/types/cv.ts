@@ -85,12 +85,18 @@ export type CvMaster = MasterResume
 export type ScrapeMethod = "URL_SCRAPE" | "MANUAL_PASTE"
 
 export interface JdRequirements {
+  id?: string
+  job_title?: string
+  company_name?: string
+  location?: string | null
+  seniority?: string | null
+  employment_type?: string | null
   required_skills: string[]
   preferred_skills: string[]
   responsibilities: string[]
   keywords: string[]
-  seniority?: string
-  employment_type?: string
+  raw_text?: string
+  source_url?: string | null
   companyName?: string
   jobTitle?: string
 }
@@ -98,6 +104,9 @@ export interface JdRequirements {
 export interface JobDescription {
   id: string
   userId: string
+  jobAppId?: string | null
+  companyName?: string | null
+  jobTitle?: string | null
   sourceUrl?: string | null
   rawText: string
   structuredRequirements: JdRequirements
@@ -113,14 +122,37 @@ export interface ScoreBreakdown {
   experienceFitScore: number // weight 15%
 }
 
+export interface MissingKeyword {
+  name: string
+  category: "hard_skill" | "framework_tool" | "methodology"
+  frequency: number
+  importance: "critical" | "recommended"
+}
+
+export interface MatchAlignmentItem {
+  skill: string
+  evidence: string
+}
+
+export interface MatchGapItem {
+  skill: string
+  severity: "critical" | "moderate" | "minor"
+  reason: string
+}
+
 export interface ScoreReport {
   id: string
   userId: string
   cvMasterId: string
   jobDescriptionId: string
   overallScore: number // 0-100
+  matchTier?: string // "Strong Match" | "Solid Fit" | "Moderate Fit" | "Stretch Role"
+  summaryVerdict?: string
+  alignments?: MatchAlignmentItem[]
+  gapsDetailed?: MatchGapItem[]
   breakdown: ScoreBreakdown
   gaps: string[]
+  criticalMissingKeywords?: MissingKeyword[]
   createdAt: string
 }
 
@@ -156,12 +188,37 @@ export interface TailoredCv {
   cvMasterId: string
   jobDescriptionId: string
   scoreReportId?: string
+  jobAppId?: string | null
   jobTitle: string
   companyName: string
   generatedContent: TailoredCvContent
   groundingReport: GroundingBulletResult[]
   renderedFileUrl?: string | null
   status: TailoredCvStatus
+  overallScore?: number | null
   createdAt: string
+  updatedAt: string
+}
+
+export interface PendingApplicationRow {
+  id: string
+  companyName: string
+  jobTitle: string
+  status: string
+  hasJd: boolean
+  appliedAt: string
+}
+
+export interface TailoredApplicationRow {
+  id: string
+  jobAppId?: string
+  tailoredCvId?: string
+  companyName: string
+  jobTitle: string
+  appStatus?: string
+  hasJd: boolean
+  hasStructuredJd: boolean
+  matchScore: number | null
+  cvStatus: "VERIFIED" | "DRAFT" | "EXPORTED" | "NOT_CREATED"
   updatedAt: string
 }

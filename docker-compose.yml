@@ -1,0 +1,51 @@
+services:
+  # FastAPI compute microservice (Resume extraction, scoring, tailoring)
+  api:
+    build:
+      context: ./backend
+      dockerfile: Dockerfile
+    container_name: jomble-api
+    ports:
+      - "8000:8000"
+    environment:
+      - GEMINI_API_KEY=${GEMINI_API_KEY:-}
+      - OLLAMA_BASE_URL=${OLLAMA_BASE_URL:-http://host.docker.internal:11434}
+      - PORT=8000
+    extra_hosts:
+      # Allows containers on Windows/Linux to connect to Ollama running on host (11434)
+      - "host.docker.internal:host-gateway"
+    healthcheck:
+      test: ["CMD-SHELL", "curl -f http://localhost:8000/health || exit 1"]
+      interval: 10s
+      timeout: 5s
+      retries: 3
+      start_period: 5s
+    restart: unless-stopped
+
+  # Next.js web application (Dashboard, CV Tailor UI, Auth)
+  web:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    container_name: jomble-web
+    ports:
+      - "3000:3000"
+    environment:
+      - NODE_ENV=production
+      - PORT=3000
+      - AUTH_TRUST_HOST=true
+      - DATABASE_URL=${DATABASE_URL}
+      - DIRECT_URL=${DIRECT_URL:-}
+      - AUTH_SECRET=${AUTH_SECRET}
+      - GOOGLE_CLIENT_ID=${GOOGLE_CLIENT_ID:-}
+      - GOOGLE_CLIENT_SECRET=${GOOGLE_CLIENT_SECRET:-}
+      - NEXT_PUBLIC_SUPABASE_URL=${NEXT_PUBLIC_SUPABASE_URL:-}
+      - SUPABASE_SERVICE_ROLE_KEY=${SUPABASE_SERVICE_ROLE_KEY:-}
+      # Server-to-server call inside Docker uses high-speed internal network
+      - FASTAPI_INTERNAL_URL=http://api:8000
+      # Browser client-side calls route to host-mapped port
+      - NEXT_PUBLIC_FASTAPI_URL=http://localhost:8000
+    depends_on:
+      api:
+        condition: service_healthy
+    restart: unless-stopped

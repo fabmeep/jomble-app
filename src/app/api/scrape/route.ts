@@ -1,7 +1,12 @@
 import { NextRequest, NextResponse } from "next/server";
 import { getUserId } from "@/lib/session";
+import { prisma } from "@/lib/prisma";
+import { getFastApiBaseUrl } from "@/lib/fastapi";
+import { isCvTailorEnabled } from "@/lib/feature-flags";
 
-// Helpers for regex-based tag extraction
+const FASTAPI_BASE_URL = getFastApiBaseUrl();
+
+// Helpers for regex-based tag extraction (fallback mode)
 
 function extractJsonLd(html: string): any[] {
     const jsonLdRegex = /<script\b[^>]*\btype=(["']?)application\/ld\+json\1[^>]*>([\s\S]*?)<\/script>/gi;
@@ -35,7 +40,6 @@ function extractMetaTag(html: string, nameOrProperty: string): string | null {
     const match = html.match(regex);
     if (match) return match[1];
 
-    // try reversed attributes (content before property/name)
     const reverseRegex = new RegExp(
         `<meta\\s+[^>]*content=["']([^"']*)["'][^>]*(?:property|name)=["']${nameOrProperty}["']`,
         "i"
@@ -82,11 +86,24 @@ function determineWorkMode(title: string, description: string, locationStr: stri
     return "ON_SITE";
 }
 
+function mapContractType(
+    type?: string | null
+): "FULL_TIME" | "PART_TIME" | "CONTRACT" | "INTERN" | "FREELANCE" | "TEMPORARY" | "OTHER" {
+    if (!type) return "FULL_TIME";
+    const upper = type.toUpperCase();
+    if (upper.includes("PART")) return "PART_TIME";
+    if (upper.includes("INTERN")) return "INTERN";
+    if (upper.includes("CONTRACT")) return "CONTRACT";
+    if (upper.includes("FREELANCE")) return "FREELANCE";
+    if (upper.includes("TEMP")) return "TEMPORARY";
+    if (upper.includes("FULL")) return "FULL_TIME";
+    return "OTHER";
+}
+
 function parseTitleAndCompany(titleStr: string): { jobTitle: string; companyName: string } {
     let jobTitle = titleStr;
     let companyName = "";
 
-    // Normalize commonly structured page titles
     if (titleStr.includes(" at ")) {
         const parts = titleStr.split(" at ");
         jobTitle = parts[0].trim();
@@ -102,6 +119,16 @@ function parseTitleAndCompany(titleStr: string): { jobTitle: string; companyName
     }
     
     return { jobTitle, companyName };
+}
+
+function detectSourceFromHostname(hostname: string): string {
+    if (hostname.includes("linkedin.com")) return "LINKEDIN";
+    if (hostname.includes("dealls.com")) return "DEALLS";
+    if (hostname.includes("kalibrr.com")) return "KALIBRR";
+    if (hostname.includes("indeed.com")) return "INDEED";
+    if (hostname.includes("glassdoor.com")) return "GLASSDOOR";
+    if (hostname.includes("github.com")) return "GITHUB_JOBS";
+    return "COMPANY_WEBSITE";
 }
 
 export async function POST(req: NextRequest) {
@@ -125,15 +152,100 @@ export async function POST(req: NextRequest) {
         }
 
         const hostname = parsedUrl.hostname.toLowerCase();
+        const source = detectSourceFromHostname(hostname);
 
-        // 1. Fetch the URL page content
+        // =========================================================================
+        // STAGE 1: Attempt FastAPI AI-Powered Scraping & Parsing (/jd/preview + /jd/parse)
+        // =========================================================================
+        if (isCvTailorEnabled()) {
+            try {
+                const previewRes = await fetch(`${FASTAPI_BASE_URL}/jd/preview`, {
+                method: "POST",
+                headers: { "Content-Type": "application/json" },
+                body: JSON.stringify({ url }),
+                signal: AbortSignal.timeout(15000),
+            });
+
+            if (previewRes.ok) {
+                const previewData = await previewRes.json();
+                const rawText = previewData.raw_text as string | undefined;
+
+                if (previewData.success && rawText && rawText.trim().length >= 100) {
+                    // Fetch user's LLM config
+                    const llmConfig = await prisma.llmProviderConfig.findFirst({
+                        where: { userId, isActive: true },
+                    });
+
+                    const parseHeaders: Record<string, string> = {
+                        "Content-Type": "application/json",
+                    };
+
+                    if (llmConfig) {
+                        parseHeaders["X-Llm-Provider"] = llmConfig.provider;
+                        if (llmConfig.geminiApiKeyEncrypted) {
+                            parseHeaders["X-Gemini-Api-Key"] = llmConfig.geminiApiKeyEncrypted;
+                        }
+                        if (llmConfig.geminiModel) {
+                            parseHeaders["X-Gemini-Model"] = llmConfig.geminiModel;
+                        }
+                        if (llmConfig.ollamaBaseUrl) {
+                            parseHeaders["X-Ollama-Url"] = llmConfig.ollamaBaseUrl;
+                        }
+                        if (llmConfig.ollamaModel) {
+                            parseHeaders["X-Ollama-Model"] = llmConfig.ollamaModel;
+                        }
+                    }
+
+                    const parseRes = await fetch(`${FASTAPI_BASE_URL}/jd/parse`, {
+                        method: "POST",
+                        headers: parseHeaders,
+                        body: JSON.stringify({
+                            raw_text: rawText.trim(),
+                            source_url: url,
+                        }),
+                        signal: AbortSignal.timeout(45000),
+                    });
+
+                    if (parseRes.ok) {
+                        const parsedData = await parseRes.json();
+                        const companyName = parsedData.company_name || "";
+                        const jobTitle = parsedData.job_title || "";
+                        const location = parsedData.location || null;
+                        const workMode = determineWorkMode(jobTitle, rawText, location || "");
+                        const contractType = mapContractType(parsedData.employment_type);
+
+                        return NextResponse.json({
+                            companyName: companyName !== "Target Company" ? companyName : "Company",
+                            jobTitle: jobTitle !== "Target Position" ? jobTitle : "Position",
+                            location,
+                            workMode,
+                            contractType,
+                            salaryMin: null,
+                            salaryMax: null,
+                            currency: "IDR",
+                            source,
+                            jobUrl: url,
+                            jobDescription: rawText.trim(),
+                            extractedWithLlm: true,
+                        });
+                    }
+                }
+            }
+        } catch (fastApiErr) {
+            console.warn("[Autofill Scraper] FastAPI LLM parse attempt skipped or failed, falling back to HTML meta extractor:", fastApiErr);
+        }
+    }
+
+        // =========================================================================
+        // STAGE 2: Fallback to direct HTML / JSON-LD / Meta extraction
+        // =========================================================================
         const response = await fetch(url, {
             headers: {
                 "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36",
                 "Accept": "text/html,application/xhtml+xml,application/xml;q=0.9,image/webp,*/*;q=0.8",
                 "Accept-Language": "en-US,en;q=0.5",
             },
-            next: { revalidate: 0 } // bypass cache
+            next: { revalidate: 0 }
         });
 
         if (!response.ok) {
@@ -142,14 +254,15 @@ export async function POST(req: NextRequest) {
 
         const html = await response.text();
 
-        // 2. Initialize defaults
         let jobTitle = "";
         let companyName = "";
         let location = "";
         let workMode: "REMOTE" | "HYBRID" | "ON_SITE" = "ON_SITE";
+        let contractType: "FULL_TIME" | "PART_TIME" | "CONTRACT" | "INTERN" | "FREELANCE" | "TEMPORARY" | "OTHER" = "FULL_TIME";
         let salaryMin: number | null = null;
         let salaryMax: number | null = null;
         let currency = "USD";
+        let jobDescription = "";
 
         // Try extracting JSON-LD JobPosting schema first
         const jsonLdObjects = extractJsonLd(html);
@@ -168,7 +281,15 @@ export async function POST(req: NextRequest) {
             const rawLoc = formatLocation(jobPosting.jobLocation);
             if (rawLoc) location = rawLoc;
 
-            // Handle salary if present in schema
+            if (jobPosting.description) {
+                // Strip HTML tags for clean text
+                jobDescription = jobPosting.description.replace(/<[^>]*>?/gm, " ").replace(/\s+/g, " ").trim();
+            }
+
+            if (jobPosting.employmentType) {
+                contractType = mapContractType(jobPosting.employmentType);
+            }
+
             if (jobPosting.baseSalary) {
                 currency = jobPosting.baseSalary.currency || "USD";
                 const valObj = jobPosting.baseSalary.value;
@@ -187,7 +308,6 @@ export async function POST(req: NextRequest) {
                 }
             }
 
-            // Map JobLocationType to REMOTE
             if (jobPosting.jobLocationType === "TELECOMMUTE") {
                 workMode = "REMOTE";
             } else {
@@ -210,50 +330,35 @@ export async function POST(req: NextRequest) {
                 companyName = ogSiteName || parsed.companyName;
             }
 
-            // Guess location from metadata
             const geoRegion = extractMetaTag(html, "geo.region");
             const geoPlacename = extractMetaTag(html, "geo.placename");
             if (geoPlacename) {
                 location = geoRegion ? `${geoPlacename}, ${geoRegion}` : geoPlacename;
             }
 
+            if (ogDescription) {
+                jobDescription = ogDescription.trim();
+            }
+
             workMode = determineWorkMode(jobTitle, ogDescription, location);
         }
 
-        // Clean values
         jobTitle = jobTitle.trim();
         companyName = companyName.trim();
         location = location.trim();
 
-        // Fallback for company name based on subdomain for Lever/Greenhouse if empty
         if (!companyName) {
             if (hostname.includes("lever.co")) {
-                // lever URLs: jobs.lever.co/company/...
                 const pathParts = parsedUrl.pathname.split("/").filter(Boolean);
                 if (pathParts.length > 0) {
                     companyName = pathParts[0].charAt(0).toUpperCase() + pathParts[0].slice(1);
                 }
             } else if (hostname.includes("greenhouse.io")) {
-                // greenhouse URLs: boards.greenhouse.io/company/...
                 const pathParts = parsedUrl.pathname.split("/").filter(Boolean);
                 if (pathParts.length > 0) {
                     companyName = pathParts[0].charAt(0).toUpperCase() + pathParts[0].slice(1);
                 }
             }
-        }
-
-        // Determine Source Enum
-        let source = "OTHER";
-        if (hostname.includes("linkedin.com")) {
-            source = "LINKEDIN";
-        } else if (hostname.includes("indeed.com")) {
-            source = "INDEED";
-        } else if (hostname.includes("glassdoor.com")) {
-            source = "GLASSDOOR";
-        } else if (hostname.includes("github.com")) {
-            source = "GITHUB_JOBS";
-        } else {
-            source = "COMPANY_WEBSITE";
         }
 
         return NextResponse.json({
@@ -261,11 +366,14 @@ export async function POST(req: NextRequest) {
             jobTitle: jobTitle || "Unknown Position",
             location: location || null,
             workMode,
+            contractType,
             salaryMin,
             salaryMax,
             currency,
             source,
             jobUrl: url,
+            jobDescription: jobDescription || null,
+            extractedWithLlm: false,
         });
 
     } catch (error) {

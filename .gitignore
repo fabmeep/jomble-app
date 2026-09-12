@@ -43,5 +43,13 @@ next-env.d.ts
 
 /src/generated/prisma
 
-# backend (local AI development)
-/backend/
+
+# Python & FastAPI Backend
+venv/
+.venv/
+__pycache__/
+*.pyc
+*.pyo
+*.pyd
+.pytest_cache/
+backend/cv_examples

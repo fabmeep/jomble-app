@@ -3,8 +3,13 @@ import { getUserId } from "@/lib/session"
 import { prisma } from "@/lib/prisma"
 import { apiSuccess, apiUnauthorized, apiError, apiBadRequest } from "@/lib/api-response"
 import { LlmProvider } from "@prisma/client"
+import { isCvTailorEnabled } from "@/lib/feature-flags"
 
 export async function GET() {
+  if (!isCvTailorEnabled()) {
+    return apiSuccess(null)
+  }
+
   try {
     const userId = await getUserId()
     const config = await prisma.llmProviderConfig.findFirst({
@@ -22,6 +27,10 @@ export async function GET() {
 }
 
 export async function POST(req: NextRequest) {
+  if (!isCvTailorEnabled()) {
+    return apiError("LLM provider configuration is disabled on this deployment.", 503)
+  }
+
   try {
     const userId = await getUserId()
     const body = await req.json()

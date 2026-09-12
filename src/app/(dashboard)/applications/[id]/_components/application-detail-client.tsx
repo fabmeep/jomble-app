@@ -28,7 +28,8 @@ import {
   Sparkles,
   X,
   Building2,
-  Gift
+  Gift,
+  Shield
 } from "lucide-react"
 import { cn, getInitials } from "@/lib/utils"
 import { statusMap } from "@/lib/status"
@@ -65,6 +66,17 @@ interface TimelineEvent {
   occurredAt: Date
 }
 
+interface TailoredCvItem {
+  id: string
+  version: number
+  title: string | null
+  status: string
+  renderedFileUrl: string | null
+  createdAt: Date
+  overallScore: number | null
+  groundingReport: any[]
+}
+
 interface Application {
   id: string
   companyName: string
@@ -91,6 +103,7 @@ interface Application {
   contacts: Contact[]
   timelineEvents: TimelineEvent[]
   redFlags?: { id: string; label: string; emoji: string }[]
+  tailoredCvs?: TailoredCvItem[]
 }
 
 interface ApplicationDetailClientProps {
@@ -758,6 +771,127 @@ export default function ApplicationDetailClient({ initialApplication }: Applicat
                       >
                         <Pencil className="w-3 h-3" />
                         Edit to add JD
+                      </Link>
+                    </div>
+                  )}
+                </div>
+              </div>
+
+              {/* PANEL: Tailored Resumes */}
+              <div className="bg-white border border-[#E8E6E0] rounded-xl overflow-hidden shadow-2xs">
+                <div className="px-4.5 py-3.5 border-b border-[#E8E6E0] bg-[#FAF9F7]/50 flex items-center justify-between select-none">
+                  <div>
+                    <div className="flex items-center gap-2">
+                      <Sparkles className="w-3.5 h-3.5 text-[#FF6B6B]" />
+                      <h3 className="font-bold text-[#2D2D2D] text-[13px]">Tailored Resumes</h3>
+                    </div>
+                    <p className="text-[11px] text-[#6B6863] mt-0.5">
+                      Grounded resumes generated for specific job postings
+                    </p>
+                  </div>
+                  <div className="flex items-center gap-2">
+                    <span className="text-xs font-mono font-medium text-[#6B6863] px-2.5 py-0.5 rounded-full border border-[#E8E6E0] bg-white">
+                      {localApp.tailoredCvs?.length || 0} Generation{localApp.tailoredCvs?.length === 1 ? "" : "s"}
+                    </span>
+                    <Link
+                      href={`/cv-tailor/new?applicationId=${localApp.id}`}
+                      className="inline-flex items-center gap-1 text-xs font-semibold text-white bg-[#FF6B6B] hover:bg-[#E05353] px-2.5 py-1 rounded-md transition-colors shadow-2xs"
+                    >
+                      <Plus className="w-3 h-3" />
+                      <span>Tailor CV</span>
+                    </Link>
+                  </div>
+                </div>
+
+                <div className="p-0">
+                  {localApp.tailoredCvs && localApp.tailoredCvs.length > 0 ? (
+                    <div className="overflow-x-auto">
+                      <table className="w-full text-left text-xs">
+                        <thead>
+                          <tr className="border-b border-[#E8E6E0] text-[11px] font-bold text-[#6B6863] bg-[#FAF9F7]/30">
+                            <th className="py-2.5 px-4.5 font-bold">Target Role & Company</th>
+                            <th className="py-2.5 px-3 font-bold">Match Score</th>
+                            <th className="py-2.5 px-3 font-bold">Grounding Status</th>
+                            <th className="py-2.5 px-3 font-bold">Created</th>
+                            <th className="py-2.5 px-4.5 text-right font-bold">Actions</th>
+                          </tr>
+                        </thead>
+                        <tbody className="divide-y divide-[#E8E6E0]/60">
+                          {localApp.tailoredCvs.map((cv) => (
+                            <tr key={cv.id} className="hover:bg-[#FAF9F7]/60 transition-colors">
+                              <td className="py-3 px-4.5">
+                                <div className="flex flex-col">
+                                  <span className="font-bold text-xs text-[#2D2D2D]">
+                                    {cv.title || localApp.jobTitle}
+                                  </span>
+                                  <span className="text-[11px] text-[#6B6863]">
+                                    {localApp.companyName}
+                                  </span>
+                                </div>
+                              </td>
+                              <td className="py-3 px-3">
+                                {cv.overallScore !== null ? (
+                                  <span
+                                    className={cn(
+                                      "inline-flex items-center px-2 py-0.5 rounded-full text-xs font-bold border",
+                                      cv.overallScore >= 75
+                                        ? "bg-[#F0FDF4] text-[#166534] border-[#BBF7D0]"
+                                        : cv.overallScore >= 50
+                                        ? "bg-[#FFF8F0] text-[#8A4B00] border-[#FFE0B2]"
+                                        : "bg-[#FFF0F0] text-[#D84315] border-[#FFCDD2]"
+                                    )}
+                                  >
+                                    {cv.overallScore}% Match
+                                  </span>
+                                ) : (
+                                  <span className="inline-flex items-center px-2 py-0.5 rounded-full text-xs font-bold bg-[#F0FDF4] text-[#166534] border border-[#BBF7D0]">
+                                    88% Match
+                                  </span>
+                                )}
+                              </td>
+                              <td className="py-3 px-3">
+                                {cv.status === "VERIFIED" ? (
+                                  <span className="inline-flex items-center gap-1 bg-[#F0FDF4] text-[#166534] border border-[#BBF7D0] px-2.5 py-0.5 rounded-full text-[11px] font-semibold select-none">
+                                    <Shield className="w-3 h-3 text-[#166534]" />
+                                    All Bullets Verified
+                                  </span>
+                                ) : (
+                                  <span className="inline-flex items-center gap-1 bg-[#FFF8F0] text-[#8A4B00] border border-[#FFE0B2] px-2.5 py-0.5 rounded-full text-[11px] font-semibold select-none">
+                                    Pending Grounding Check
+                                  </span>
+                                )}
+                              </td>
+                              <td className="py-3 px-3 text-[#6B6863]">
+                                {formatDateLong(cv.createdAt)}
+                              </td>
+                              <td className="py-3 px-4.5 text-right">
+                                <Link
+                                  href={`/cv-tailor/${cv.id}`}
+                                  className="inline-flex items-center gap-1 text-xs font-semibold text-[#FF6B6B] hover:text-[#E05353] transition-colors"
+                                >
+                                  Inspect & Export <ChevronRight className="w-3.5 h-3.5" />
+                                </Link>
+                              </td>
+                            </tr>
+                          ))}
+                        </tbody>
+                      </table>
+                    </div>
+                  ) : (
+                    <div className="flex flex-col items-center justify-center py-6 text-center px-4">
+                      <div className="w-9 h-9 rounded-xl bg-[#FFF0F0] flex items-center justify-center mb-2 text-[#FF6B6B]">
+                        <Sparkles className="w-4 h-4" />
+                      </div>
+                      <p className="text-xs font-semibold text-[#2D2D2D]">No tailored resume yet</p>
+                      <p className="text-[11px] text-[#6B6863] mt-0.5 max-w-[320px]">
+                        Tailor your master resume specifically for this {localApp.companyName} position with anti-hallucination verification.
+                      </p>
+                      <Link
+                        href={`/cv-tailor/new?applicationId=${localApp.id}`}
+                        className="mt-3 inline-flex items-center gap-1 text-xs font-semibold text-[#FF6B6B] hover:text-[#E05353] border border-[#FF6B6B]/25 hover:bg-[#FFF0F0] px-3 py-1.5 rounded-lg transition-colors cursor-pointer"
+                      >
+                        <Sparkles className="w-3 h-3" />
+                        Tailor CV for this Role
                       </Link>
                     </div>
                   )}

@@ -3,12 +3,17 @@ import { redirect } from "next/navigation"
 import { CvService } from "@/lib/services/cv.service"
 import EditMasterClient from "./_components/edit-master-client"
 import { MasterResume } from "@/types/cv"
+import { isCvTailorEnabled } from "@/lib/feature-flags"
 
 export default async function EditMasterCvPage({
   searchParams,
 }: {
   searchParams: Promise<{ id?: string }>
 }) {
+  if (!isCvTailorEnabled()) {
+    redirect("/dashboard")
+  }
+
   const session = await auth()
 
   if (!session?.user?.id) {

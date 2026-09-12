@@ -3,12 +3,17 @@ import { redirect, notFound } from "next/navigation"
 import { CvService } from "@/lib/services/cv.service"
 import MasterDetailClient from "./_components/master-detail-client"
 import { MasterResume } from "@/types/cv"
+import { isCvTailorEnabled } from "@/lib/feature-flags"
 
 export default async function MasterCvDetailPage({
   params,
 }: {
   params: Promise<{ id: string }>
 }) {
+  if (!isCvTailorEnabled()) {
+    redirect("/dashboard")
+  }
+
   const session = await auth()
 
   if (!session?.user?.id) {
